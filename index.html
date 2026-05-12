@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0f172a" />
+<title>威通運輸 - 後台管理</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
+      "Microsoft JhengHei", "微軟正黑體", sans-serif;
+    background: #f1f5f9;
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  button, input, select, textarea { font-family: inherit; font-size: 14px; }
+  button { cursor: pointer; }
+
+  /* Login */
+  .login-wrap {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .login-card {
+    background: #fff; padding: 32px;
+    border-radius: 18px;
+    width: 100%; max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .login-card h1 { font-size: 22px; margin: 0 0 4px; color: #0f172a; }
+  .login-card .sub { color: #64748b; font-size: 13px; margin-bottom: 22px; }
+  .login-card label { display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:#334155; }
+  .login-card input {
+    width: 100%; padding: 12px 14px;
+    border: 1px solid #cbd5e1; border-radius: 10px;
+    margin-bottom: 14px; outline: none;
+  }
+  .login-card input:focus { border-color: #1e40af; box-shadow: 0 0 0 3px rgba(30,64,175,0.15); }
+  .login-card .btn-primary {
+    width: 100%; background: #0f172a; color: #fff;
+    border: 0; padding: 13px;
+    border-radius: 10px;
+    font-weight: 700; font-size: 15px;
+  }
+  .login-card .btn-primary:disabled { background: #94a3b8; }
+  .login-card .err { background: #fef2f2; color: #dc2626; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+  .login-card .link-btn { background: transparent; border: 0; color: #1e40af; font-size: 13px; padding: 8px; width: 100%; }
+
+  /* Header */
+  header {
+    background: #0f172a; color: #fff;
+    padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  header .brand {
+    font-size: 17px; font-weight: 700; letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  header .brand .badge-admin {
+    background: #f59e0b; color: #78350f;
+    font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    font-weight: 700;
+  }
+  header .actions { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  header .actions .url-pill {
+    background: rgba(255,255,255,0.1);
+    padding: 4px 12px; border-radius: 999px;
+    font-size: 11px; color: #cbd5e1;
+    max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  header .logout {
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: 0; padding: 6px 14px; border-radius: 8px;
+  }
+  header .logout:hover { background: rgba(255,255,255,0.2); }
+
+  /* Tabs */
+  .tabs {
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0 24px;
+    display: flex; gap: 0; overflow-x: auto;
+    position: sticky; top: 0; z-index: 5;
+  }
+  .tab {
+    background: transparent; border: 0;
+    padding: 14px 20px;
+    font-size: 14px; font-weight: 600;
+    color: #64748b;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+  }
+  .tab:hover { color: #1e40af; }
+  .tab.active { color: #1e40af; border-bottom-color: #1e40af; }
+
+  /* Layout */
+  .container { padding: 20px 24px 60px; max-width: 1400px; margin: 0 auto; }
+
+  .card {
+    background: #fff; border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+    margin-bottom: 16px;
+  }
+  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; color: #0f172a; }
+
+  /* Filters */
+  .filters {
+    display: flex; flex-wrap: wrap;
+    gap: 10px; align-items: end;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 4px; }
+  .filter-group label { font-size: 12px; color: #64748b; font-weight: 600; }
+  .filter-group input, .filter-group select {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1; border-radius: 8px;
+    background: #fff; outline: none;
+    min-width: 140px;
+  }
+  .filter-group input:focus, .filter-group select:focus { border-color: #1e40af; box-shadow: 0 0 0 3px rgba(30,64,175,0.15); }
+  .btn {
+    padding: 9px 16px;
+    border: 0; border-radius: 8px;
+    font-weight: 600; font-size: 13px;
+    background: #f1f5f9; color: #0f172a;
+  }
+  .btn:hover { background: #e2e8f0; }
+  .btn.primary { background: #1e40af; color: #fff; }
+  .btn.primary:hover { background: #1e3a8a; }
+  .btn.success { background: #16a34a; color: #fff; }
+  .btn.success:hover { background: #15803d; }
+  .btn.danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  .btn.danger:hover { background: #fee2e2; }
+  .btn.small { padding: 5px 10px; font-size: 12px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: #fff; border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+  }
+  .stat-label { font-size: 12px; color: #64748b; margin-bottom: 6px; font-weight: 600; }
+  .stat-value { font-size: 24px; font-weight: 700; color: #0f172a; }
+  .stat-value .small { font-size: 13px; color: #64748b; font-weight: 500; }
+  .stat-card.accent { background: #1e40af; color: #fff; border-color: #1e40af; }
+  .stat-card.accent .stat-label { color: #c7d2fe; }
+  .stat-card.accent .stat-value { color: #fff; }
+  .stat-card.accent .stat-value .small { color: #c7d2fe; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  thead th.num { text-align: right; }
+  tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #0f172a;
+  }
+  tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:hover { background: #f8fafc; }
+  tbody tr.total-row { background: #eef2ff; font-weight: 700; }
+  tbody tr.total-row td { color: #1e40af; }
+
+  .empty-cell {
+    text-align: center; padding: 40px 20px;
+    color: #94a3b8; font-size: 13px;
+  }
+
+  /* List management */
+  .list-mgmt-row {
+    display: flex; gap: 8px; align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .list-mgmt-row .name-input {
+    flex: 1;
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 6px 10px;
+    border-radius: 6px;
+    outline: none;
+    font-size: 14px;
+  }
+  .list-mgmt-row .name-input:focus { border-color: #1e40af; background: #fff; box-shadow: 0 0 0 3px rgba(30,64,175,0.15); }
+  .list-mgmt-row .pin-status { font-size: 12px; color: #64748b; }
+  .list-mgmt-row .pin-status.set { color: #16a34a; }
+  .list-mgmt-row .pin-status.unset { color: #f59e0b; }
+
+  .add-row {
+    background: #f8fafc;
+    padding: 12px 12px;
+    border-bottom: 2px solid #e2e8f0;
+    display: flex; gap: 8px;
+  }
+  .add-row input {
+    flex: 1; padding: 8px 12px;
+    border: 1px solid #cbd5e1; border-radius: 8px;
+    background: #fff; outline: none;
+  }
+  .add-row input:focus { border-color: #1e40af; box-shadow: 0 0 0 3px rgba(30,64,175,0.15); }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 80px; right: 20px;
+    background: #0f172a; color: #fff;
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px;
+    opacity: 0; transition: all 0.25s;
+    z-index: 999;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    max-width: 320px;
+    transform: translateX(20px);
+  }
+  .toast.show { opacity: 1; transform: translateX(0); }
+  .toast.error { background: #991b1b; }
+  .toast.success { background: #166534; }
+
+  /* Modal */
+  .modal-mask {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.7);
+    z-index: 100;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: #fff; border-radius: 14px;
+    width: 100%; max-width: 460px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .modal h2 { font-size: 17px; margin: 0; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
+  .modal .body { padding: 18px 22px; }
+  .modal .actions { display: flex; gap: 8px; padding: 12px 22px; border-top: 1px solid #e2e8f0; justify-content: flex-end; }
+  .modal label { display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:#334155; }
+  .modal input {
+    width: 100%; padding: 10px 14px;
+    border: 1px solid #cbd5e1; border-radius: 8px;
+    margin-bottom: 12px; outline: none;
+  }
+  .modal input:focus { border-color: #1e40af; box-shadow: 0 0 0 3px rgba(30,64,175,0.15); }
+
+  .pin-display {
+    display: inline-block;
+    background: #fef3c7; color: #92400e;
+    padding: 4px 12px; border-radius: 6px;
+    font-family: monospace; font-size: 14px; font-weight: 700;
+    letter-spacing: 4px;
+    border: 1px dashed #f59e0b;
+  }
+
+  /* breakdown badge */
+  .ml-badge {
+    display: inline-block;
+    background: #eef2ff; color: #4338ca;
+    padding: 2px 8px; border-radius: 6px;
+    font-size: 12px; font-weight: 500;
+  }
+
+  /* Loading */
+  .global-loading {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    padding: 18px 24px; border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    display: none;
+    align-items: center; gap: 10px;
+    z-index: 999;
+  }
+  .global-loading.show { display: flex; }
+  .global-loading .spin {
+    width: 20px; height: 20px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #1e40af;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    header .actions .url-pill { display: none; }
+    .tabs { padding: 0 8px; }
+    .tab { padding: 12px 12px; font-size: 13px; }
+    .container { padding: 14px 14px 60px; }
+    .filter-group input, .filter-group select { min-width: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 登入 / 設定 -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <h1 id="loginH1">威通運輸 後台管理</h1>
+    <div class="sub" id="loginSub"></div>
+    <div class="err" id="loginErr" style="display:none;"></div>
+
+    <!-- 註冊區塊（首次使用） -->
+    <div id="registerBlock" style="display:none;">
+      <label>設定帳號</label>
+      <input type="text" id="regUsername" placeholder="請輸入帳號" autocomplete="off" />
+      <label>設定密碼</label>
+      <input type="password" id="regPassword" placeholder="請輸入密碼" autocomplete="off" />
+      <label>確認密碼</label>
+      <input type="password" id="regPasswordConfirm" placeholder="再輸入一次密碼" autocomplete="off" />
+      <button class="btn-primary" id="registerBtn">建立帳號</button>
+    </div>
+
+    <!-- 登入區塊（已有帳號） -->
+    <div id="loginBlock" style="display:none;">
+      <label>帳號</label>
+      <input type="text" id="loginUsername" placeholder="請輸入帳號" autocomplete="off" />
+      <label>密碼</label>
+      <input type="password" id="loginPassword" placeholder="請輸入密碼" autocomplete="off" />
+      <button class="btn-primary" id="loginBtn">登入</button>
+      <button class="link-btn" id="resetAccountLink">⚠ 重設帳號（清除所有本機設定）</button>
+    </div>
+
+    <!-- API URL 隱藏備用 -->
+    <div id="apiUrlBlock" style="display:none;">
+      <label>Apps Script API URL</label>
+      <input type="url" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec" />
+    </div>
+  </div>
+</div>
+
+<!-- 主畫面 -->
+<div id="appRoot" style="display:none;">
+
+<header>
+  <div class="brand">
+    威通運輸 · 送貨紀錄
+    <span class="badge-admin">管理後台</span>
+  </div>
+  <div class="actions">
+    <span class="url-pill" id="urlPill" title="API URL"></span>
+    <a id="sheetLink" href="#" target="_blank" class="logout" style="text-decoration:none;display:none;">📊 開啟 Sheet</a>
+    <button class="logout" id="logoutBtn">登出</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="overview">📊 紀錄總覽</button>
+  <button class="tab" data-tab="accounting">💰 帳務分析</button>
+  <button class="tab" data-tab="invoices">📑 客戶請款單</button>
+  <button class="tab" data-tab="drivers">👥 司機管理</button>
+  <button class="tab" data-tab="lists">🏢 客戶/公司</button>
+  <button class="tab" data-tab="settings">⚙ 設定</button>
+</nav>
+
+<div class="container">
+
+  <!-- 紀錄總覽 -->
+  <div class="tab-page" id="page-overview">
+    <div class="card">
+      <div class="filters">
+        <div class="filter-group">
+          <label>從</label>
+          <input type="date" id="filterFrom" />
+        </div>
+        <div class="filter-group">
+          <label>到</label>
+          <input type="date" id="filterTo" />
+        </div>
+        <div class="filter-group">
+          <label>司機</label>
+          <select id="filterDriver"><option value="">全部</option></select>
+        </div>
+        <div class="filter-group">
+          <label>客戶</label>
+          <select id="filterCustomer"><option value="">全部</option></select>
+        </div>
+        <button class="btn primary" id="applyFilterBtn">套用</button>
+        <button class="btn" id="resetFilterBtn">重設(本月)</button>
+        <button class="btn success" id="exportOverviewBtn">⬇ 匯出 Excel</button>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="overviewStats"></div>
+
+    <div class="card">
+      <div class="card-title">紀錄列表 <span style="color:#64748b;font-weight:500;font-size:13px;" id="recordsCountLabel">-</span></div>
+      <div class="table-wrap">
+        <table id="recordsTable">
+          <thead><tr>
+            <th>#</th><th>日期</th><th>司機</th><th>客戶</th><th>公司/案名</th><th>地點</th>
+            <th>噸數</th><th class="num">運費</th><th class="num">搬運金額</th><th class="num">合計</th><th>備註</th>
+          </tr></thead>
+          <tbody id="recordsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 帳務分析 -->
+  <div class="tab-page" id="page-accounting" style="display:none;">
+    <div class="card">
+      <div class="card-title">帳務分析 — 同上方時間範圍</div>
+      <div style="font-size:13px;color:#64748b;">在「紀錄總覽」設定篩選條件，這裡會自動同步分析。</div>
+    </div>
+    <div class="stats-grid" id="acctStats"></div>
+    <div class="card">
+      <div class="card-title">依司機小計</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>司機</th><th class="num">筆數</th><th class="num">運費</th><th class="num">搬運金額</th><th class="num">合計</th></tr></thead>
+          <tbody id="byDriverTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">依客戶小計</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>客戶</th><th class="num">筆數</th><th class="num">運費</th><th class="num">搬運金額</th><th class="num">合計</th></tr></thead>
+          <tbody id="byCustomerTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 客戶請款單 -->
+  <div class="tab-page" id="page-invoices" style="display:none;">
+    <div class="card">
+      <div class="card-title">客戶請款單 — 依客戶分頁產出 Excel</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:12px;">
+        產出格式類似原 4 月請款單：每位客戶一個分頁，最下方有總額與匯款資訊。
+      </div>
+      <div class="filters">
+        <div class="filter-group">
+          <label>請款月份</label>
+          <input type="month" id="invoiceMonth" />
+        </div>
+        <button class="btn success" id="generateInvoiceBtn">⬇ 產生 Excel</button>
+        <button class="btn primary" id="generateInvoicePdfBtn">🖨 產生 PDF（可列印）</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">該月份預覽</div>
+      <div id="invoicePreview" style="font-size:13px;color:#475569;"></div>
+    </div>
+  </div>
+
+  <!-- 司機管理 -->
+  <div class="tab-page" id="page-drivers" style="display:none;">
+    <div class="card">
+      <div class="card-title">司機管理 — 設定 PIN 給司機</div>
+      <div class="add-row">
+        <input type="text" id="addDriverName" placeholder="新增司機名稱" />
+        <input type="text" id="addDriverPin" placeholder="PIN(4 位數)" maxlength="4" inputmode="numeric" style="max-width:140px;" />
+        <button class="btn primary" id="addDriverBtn">新增</button>
+      </div>
+      <div id="driversList"></div>
+    </div>
+  </div>
+
+  <!-- 客戶/公司 -->
+  <div class="tab-page" id="page-lists" style="display:none;">
+    <div class="card">
+      <div class="card-title">客戶清單</div>
+      <div class="add-row">
+        <input type="text" id="addCustomerName" placeholder="新增客戶名稱" />
+        <button class="btn primary" id="addCustomerBtn">新增</button>
+      </div>
+      <div id="customersList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">公司 / 案名清單</div>
+      <div class="add-row">
+        <input type="text" id="addCompanyName" placeholder="新增公司名稱" />
+        <button class="btn primary" id="addCompanyBtn">新增</button>
+      </div>
+      <div id="companiesList"></div>
+    </div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="tab-page" id="page-settings" style="display:none;">
+    <div class="card">
+      <div class="card-title">系統設定</div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px;">API 網址</label>
+        <input type="url" id="settingsApiUrl" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;outline:none;" />
+        <button class="btn primary" id="saveApiUrlBtn" style="margin-top:8px;">儲存</button>
+      </div>
+      <hr style="border:0;border-top:1px solid #e2e8f0;margin:16px 0;">
+      <div>
+        <div class="card-title" style="margin-bottom:8px;">變更老闆密碼</div>
+        <label style="font-size:13px;color:#334155;display:block;margin-bottom:6px;">目前密碼</label>
+        <input type="password" id="curPwd" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;outline:none;margin-bottom:8px;" />
+        <label style="font-size:13px;color:#334155;display:block;margin-bottom:6px;">新密碼</label>
+        <input type="password" id="newPwd" style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;outline:none;margin-bottom:8px;" />
+        <button class="btn primary" id="changePwdBtn">更新密碼</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+<!-- PIN 設定 modal -->
+<div class="modal-mask" id="pinModal">
+  <div class="modal">
+    <h2 id="pinModalTitle">設定 PIN</h2>
+    <div class="body">
+      <div id="pinModalBody">
+        <label>新 PIN（4 位數）</label>
+        <input type="text" id="pinModalInput" maxlength="4" inputmode="numeric" placeholder="例：1234" autocomplete="off" />
+        <div style="font-size:12px;color:#64748b;">留空送出可以「清除」PIN，司機下次登入時輸入的任何 PIN 會自動成為新 PIN。</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="pinModalCancel">取消</button>
+      <button class="btn primary" id="pinModalConfirm">確定</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="global-loading" id="globalLoading"><div class="spin"></div><span id="loadingMsg">處理中…</span></div>
+
+<script>
+'use strict';
+
+const LS = {
+  apiUrl: 'wt_admin_api_url',
+  pwd: 'wt_admin_pwd',        // 暫存在 sessionStorage 才安全
+  account: 'wt_admin_account' // 本機帳號（帳號+雜湊密碼）
+};
+
+let state = {
+  apiUrl: localStorage.getItem(LS.apiUrl) || 'https://script.google.com/macros/s/AKfycbxI757ipgDmcBSs86qxxDf69jDNUCG2UNaCQkglUqe8omvmTLEZ3CIdeG3cIoJd0Uei/exec',
+  pwd: sessionStorage.getItem(LS.pwd) || '',
+  records: [],
+  drivers: [],
+  customers: [],
+  companies: [],
+  filters: { from: '', to: '', driver: '', customer: '' },
+  currentTab: 'overview'
+};
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const fmtMoney = (n) => '$' + (Number(n) || 0).toLocaleString('en-US');
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+const monthStartStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+};
+const monthEndStr = () => {
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth()+1, 0);
+  return `${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+};
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, m => ({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[m]));
+
+function showToast(msg, type) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.remove('error','success');
+  if (type) t.classList.add(type);
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+function setLoading(on, msg) {
+  $('#globalLoading').classList.toggle('show', !!on);
+  if (msg) $('#loadingMsg').textContent = msg;
+}
+
+// ===== API =====
+async function api(action, payload) {
+  if (!state.apiUrl) throw new Error('尚未設定 API URL');
+  // Google Apps Script 會先 302 重導向，需要手動跟進
+  const res = await fetch(state.apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, payload: payload || {} }),
+    redirect: 'follow'
+  });
+  // 如果被重導向到 GET，改用 GET 帶 payload 參數
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch(e) { throw new Error('回應格式錯誤: ' + text.slice(0, 100)); }
+  if (!data.ok) throw new Error(data.error || '未知錯誤');
+  return data;
+}
+function adminApi(action, payload) {
+  return api(action, Object.assign({ password: state.pwd }, payload || {}));
+}
+
+// ===== 啟動 =====
+async function init() {
+  bindEvents();
+  const account = JSON.parse(localStorage.getItem(LS.account) || 'null');
+  if (!account) {
+    // 首次使用 → 顯示註冊
+    $('#loginSub').textContent = '首次使用，請建立帳號';
+    $('#registerBlock').style.display = 'block';
+  } else {
+    // 已有帳號 → 顯示登入
+    $('#loginSub').textContent = `歡迎回來，${account.username}`;
+    $('#loginUsername').value = account.username;
+    $('#loginBlock').style.display = 'block';
+    // 嘗試自動登入（session 還在）
+    if (state.pwd) {
+      await enterApp();
+      return;
+    }
+  }
+}
+
+async function enterApp() {
+  $('#loginWrap').style.display = 'none';
+  $('#appRoot').style.display = 'block';
+  $('#urlPill').textContent = state.apiUrl;
+  // 預填本月為篩選範圍
+  $('#filterFrom').value = monthStartStr();
+  $('#filterTo').value = monthEndStr();
+  state.filters.from = monthStartStr();
+  state.filters.to = monthEndStr();
+  // 預填這個月
+  const d = new Date();
+  $('#invoiceMonth').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  // 設定頁也填一下
+  $('#settingsApiUrl').value = state.apiUrl;
+  await refreshAll();
+}
+
+async function refreshAll() {
+  setLoading(true, '載入資料中…');
+  try {
+    const [recs, drvs, cus, cos] = await Promise.all([
+      adminApi('admin_list_all_records'),
+      api('list_drivers'),
+      api('list_customers'),
+      api('list_companies')
+    ]);
+    state.records = recs.data || [];
+    state.drivers = drvs.data || [];
+    state.customers = cus.data || [];
+    state.companies = cos.data || [];
+    renderFilters();
+    renderCurrentTab();
+  } catch (err) {
+    showToast('載入失敗：' + err.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ===== 事件 =====
+function bindEvents() {
+  // login / register
+  $('#loginBtn').addEventListener('click', doLogin);
+  $('#loginPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+  $('#loginUsername').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#loginPassword').focus(); });
+  $('#registerBtn').addEventListener('click', doRegister);
+  $('#regPasswordConfirm').addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
+  $('#resetAccountLink').addEventListener('click', () => {
+    if (!confirm('確定要清除本機帳號與所有設定嗎？此動作無法復原。')) return;
+    localStorage.clear(); sessionStorage.clear(); location.reload();
+  });
+
+  // header
+  $('#logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem(LS.pwd);
+    state.pwd = '';
+    location.reload();
+  });
+
+  // tabs
+  $$('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+  // overview
+  $('#applyFilterBtn').addEventListener('click', () => {
+    state.filters.from = $('#filterFrom').value;
+    state.filters.to = $('#filterTo').value;
+    state.filters.driver = $('#filterDriver').value;
+    state.filters.customer = $('#filterCustomer').value;
+    renderCurrentTab();
+  });
+  $('#resetFilterBtn').addEventListener('click', () => {
+    $('#filterFrom').value = monthStartStr();
+    $('#filterTo').value = monthEndStr();
+    $('#filterDriver').value = '';
+    $('#filterCustomer').value = '';
+    state.filters = { from: monthStartStr(), to: monthEndStr(), driver: '', customer: '' };
+    renderCurrentTab();
+  });
+  $('#exportOverviewBtn').addEventListener('click', exportOverviewExcel);
+
+  // invoices
+  $('#generateInvoiceBtn').addEventListener('click', generateInvoiceExcel);
+  $('#generateInvoicePdfBtn').addEventListener('click', generateInvoicePdf);
+  $('#invoiceMonth').addEventListener('change', renderInvoicePreview);
+
+  // drivers mgmt
+  $('#addDriverBtn').addEventListener('click', addDriver);
+
+  // lists mgmt
+  $('#addCustomerBtn').addEventListener('click', () => addList('customer'));
+  $('#addCompanyBtn').addEventListener('click', () => addList('company'));
+
+  // settings
+  $('#saveApiUrlBtn').addEventListener('click', () => {
+    const v = $('#settingsApiUrl').value.trim();
+    if (!v) return showToast('網址不可為空', 'error');
+    state.apiUrl = v;
+    localStorage.setItem(LS.apiUrl, v);
+    $('#urlPill').textContent = v;
+    showToast('已儲存', 'success');
+  });
+  $('#changePwdBtn').addEventListener('click', changeAdminPwd);
+
+  // pin modal
+  $('#pinModalCancel').addEventListener('click', () => $('#pinModal').classList.remove('show'));
+}
+
+async function doLogin() {
+  const username = $('#loginUsername').value.trim();
+  const pwd = $('#loginPassword').value;
+  if (!username) return loginErr('請輸入帳號');
+  if (!pwd) return loginErr('請輸入密碼');
+  const account = JSON.parse(localStorage.getItem(LS.account) || 'null');
+  if (!account) return loginErr('尚未建立帳號，請重新整理頁面');
+  const hash = await sha256(pwd);
+  if (account.username !== username || account.pwdHash !== hash) {
+    return loginErr('帳號或密碼錯誤');
+  }
+  state.pwd = pwd;
+  sessionStorage.setItem(LS.pwd, pwd);
+  await enterApp();
+}
+
+async function doRegister() {
+  const username = $('#regUsername').value.trim();
+  const pwd = $('#regPassword').value;
+  const confirm = $('#regPasswordConfirm').value;
+  if (!username) return loginErr('請輸入帳號');
+  if (!pwd) return loginErr('請輸入密碼');
+  if (pwd !== confirm) return loginErr('兩次密碼不一致');
+  if (pwd.length < 4) return loginErr('密碼至少 4 個字元');
+  const hash = await sha256(pwd);
+  localStorage.setItem(LS.account, JSON.stringify({ username, pwdHash: hash }));
+  state.pwd = pwd;
+  sessionStorage.setItem(LS.pwd, pwd);
+  await enterApp();
+}
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function loginErr(msg) {
+  const e = $('#loginErr');
+  e.textContent = msg; e.style.display = 'block';
+}
+
+// ===== Tab 切換 =====
+function switchTab(name) {
+  state.currentTab = name;
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  $$('.tab-page').forEach(p => p.style.display = (p.id === 'page-' + name) ? '' : 'none');
+  renderCurrentTab();
+}
+function renderCurrentTab() {
+  switch (state.currentTab) {
+    case 'overview': renderOverview(); break;
+    case 'accounting': renderAccounting(); break;
+    case 'invoices': renderInvoicePreview(); break;
+    case 'drivers': renderDriversList(); break;
+    case 'lists': renderListsMgmt(); break;
+  }
+}
+
+function renderFilters() {
+  const dSel = $('#filterDriver');
+  const cur1 = dSel.value;
+  dSel.innerHTML = '<option value="">全部</option>' + state.drivers.map(d => `<option>${escapeHtml(d.name)}</option>`).join('');
+  dSel.value = cur1 || '';
+
+  const cSel = $('#filterCustomer');
+  const cur2 = cSel.value;
+  cSel.innerHTML = '<option value="">全部</option>' + state.customers.map(c => `<option>${escapeHtml(c)}</option>`).join('');
+  cSel.value = cur2 || '';
+}
+
+function filterRecords() {
+  const f = state.filters;
+  return state.records.filter(r => {
+    if (f.from && String(r.date) < f.from) return false;
+    if (f.to && String(r.date) > f.to) return false;
+    if (f.driver && r.driver !== f.driver) return false;
+    if (f.customer && r.customer !== f.customer) return false;
+    return true;
+  }).sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+  });
+}
+
+// ===== 紀錄總覽 =====
+function renderOverview() {
+  const list = filterRecords();
+  $('#recordsCountLabel').textContent = `共 ${list.length} 筆`;
+
+  const sumF = list.reduce((s, r) => s + (Number(r.freight) || 0), 0);
+  const sumH = list.reduce((s, r) => s + (Number(r.handling) || 0), 0);
+  const total = sumF + sumH;
+  $('#overviewStats').innerHTML = `
+    <div class="stat-card accent">
+      <div class="stat-label">總金額</div>
+      <div class="stat-value">${fmtMoney(total)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">運費</div>
+      <div class="stat-value">${fmtMoney(sumF)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">搬運金額</div>
+      <div class="stat-value">${fmtMoney(sumH)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">筆數</div>
+      <div class="stat-value">${list.length} <span class="small">筆</span></div>
+    </div>`;
+
+  const tb = $('#recordsTbody');
+  if (list.length === 0) {
+    tb.innerHTML = `<tr><td colspan="11" class="empty-cell">沒有符合條件的紀錄</td></tr>`;
+    return;
+  }
+  tb.innerHTML = list.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(r.date)}</td>
+      <td>${escapeHtml(r.driver)}</td>
+      <td><b>${escapeHtml(r.customer || '')}</b></td>
+      <td>${escapeHtml(r.project || '')}</td>
+      <td>${escapeHtml(r.location || '')}</td>
+      <td>${escapeHtml(r.tonnage || '')}</td>
+      <td class="num">${(Number(r.freight)||0) ? fmtMoney(r.freight) : '-'}</td>
+      <td class="num">${(Number(r.handling)||0) ? fmtMoney(r.handling) : '-'}</td>
+      <td class="num"><b>${fmtMoney(r.amount)}</b></td>
+      <td>${escapeHtml(r.remarks || '')}</td>
+    </tr>`).join('');
+}
+
+// ===== 帳務分析 =====
+function renderAccounting() {
+  const list = filterRecords();
+  const sumF = list.reduce((s, r) => s + (Number(r.freight) || 0), 0);
+  const sumH = list.reduce((s, r) => s + (Number(r.handling) || 0), 0);
+  $('#acctStats').innerHTML = `
+    <div class="stat-card accent">
+      <div class="stat-label">總金額</div>
+      <div class="stat-value">${fmtMoney(sumF + sumH)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">司機數</div>
+      <div class="stat-value">${new Set(list.map(r => r.driver)).size}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">客戶數</div>
+      <div class="stat-value">${new Set(list.map(r => r.customer)).size}</div>
+    </div>`;
+
+  const byDriver = {};
+  list.forEach(r => {
+    const k = r.driver || '(無司機)';
+    if (!byDriver[k]) byDriver[k] = { count: 0, freight: 0, handling: 0 };
+    byDriver[k].count++;
+    byDriver[k].freight += Number(r.freight) || 0;
+    byDriver[k].handling += Number(r.handling) || 0;
+  });
+  const byCustomer = {};
+  list.forEach(r => {
+    const k = r.customer || '(無客戶)';
+    if (!byCustomer[k]) byCustomer[k] = { count: 0, freight: 0, handling: 0 };
+    byCustomer[k].count++;
+    byCustomer[k].freight += Number(r.freight) || 0;
+    byCustomer[k].handling += Number(r.handling) || 0;
+  });
+
+  const renderRows = (obj, sortByTotal) => {
+    const keys = Object.keys(obj).sort((a, b) => sortByTotal
+      ? (obj[b].freight + obj[b].handling) - (obj[a].freight + obj[a].handling)
+      : a.localeCompare(b, 'zh-Hant'));
+    if (keys.length === 0) return `<tr><td colspan="5" class="empty-cell">沒有資料</td></tr>`;
+    let totalF = 0, totalH = 0, totalCount = 0;
+    const rows = keys.map(k => {
+      const v = obj[k];
+      totalF += v.freight; totalH += v.handling; totalCount += v.count;
+      return `<tr>
+        <td><b>${escapeHtml(k)}</b></td>
+        <td class="num">${v.count}</td>
+        <td class="num">${fmtMoney(v.freight)}</td>
+        <td class="num">${fmtMoney(v.handling)}</td>
+        <td class="num"><b>${fmtMoney(v.freight + v.handling)}</b></td>
+      </tr>`;
+    }).join('');
+    return rows + `<tr class="total-row">
+      <td>合計</td>
+      <td class="num">${totalCount}</td>
+      <td class="num">${fmtMoney(totalF)}</td>
+      <td class="num">${fmtMoney(totalH)}</td>
+      <td class="num">${fmtMoney(totalF + totalH)}</td>
+    </tr>`;
+  };
+
+  $('#byDriverTbody').innerHTML = renderRows(byDriver, true);
+  $('#byCustomerTbody').innerHTML = renderRows(byCustomer, true);
+}
+
+// ===== 客戶請款單 =====
+function getInvoiceMonthRange() {
+  const v = $('#invoiceMonth').value;
+  if (!v) return null;
+  const [y, m] = v.split('-').map(Number);
+  const last = new Date(y, m, 0);
+  return {
+    from: `${y}-${String(m).padStart(2,'0')}-01`,
+    to: `${y}-${String(m).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`,
+    year: y, month: m
+  };
+}
+function renderInvoicePreview() {
+  const r = getInvoiceMonthRange();
+  if (!r) { $('#invoicePreview').textContent = '請選擇月份'; return; }
+  const list = state.records.filter(x => x.date >= r.from && x.date <= r.to);
+  const byCustomer = {};
+  list.forEach(rec => {
+    const k = rec.customer || '(無客戶)';
+    if (!byCustomer[k]) byCustomer[k] = { count: 0, total: 0 };
+    byCustomer[k].count++;
+    byCustomer[k].total += Number(rec.amount) || 0;
+  });
+  const customers = Object.keys(byCustomer).sort();
+  if (customers.length === 0) {
+    $('#invoicePreview').innerHTML = `<div class="empty-cell">該月份沒有紀錄</div>`;
+    return;
+  }
+  $('#invoicePreview').innerHTML = `
+    <div style="margin-bottom:8px;"><b>${r.year}/${String(r.month).padStart(2,'0')}</b> · 共 ${list.length} 筆 · ${customers.length} 個客戶</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>客戶</th><th class="num">筆數</th><th class="num">小計</th></tr></thead>
+      <tbody>${customers.map(c => `<tr>
+        <td>${escapeHtml(c)}</td>
+        <td class="num">${byCustomer[c].count}</td>
+        <td class="num"><b>${fmtMoney(byCustomer[c].total)}</b></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+function generateInvoiceExcel() {
+  const r = getInvoiceMonthRange();
+  if (!r) return showToast('請選擇月份', 'error');
+  const list = state.records.filter(x => x.date >= r.from && x.date <= r.to);
+  if (list.length === 0) return showToast('該月份沒有紀錄', 'error');
+
+  const byCustomer = {};
+  list.forEach(rec => {
+    const k = rec.customer || '(無客戶)';
+    if (!byCustomer[k]) byCustomer[k] = [];
+    byCustomer[k].push(rec);
+  });
+  Object.values(byCustomer).forEach(arr => arr.sort((a, b) => a.date.localeCompare(b.date)));
+
+  const wb = XLSX.utils.book_new();
+  const minguoYear = r.year - 1911;
+  Object.keys(byCustomer).sort().forEach(customerName => {
+    const items = byCustomer[customerName];
+    const rows = [];
+    rows.push([null, ` -威通運輸${minguoYear}年${r.month}月份請款單-`, '', '', '', '', '', '']);
+    rows.push([null, '', '', `${customerName}出車明細表`, '', '', '', '']);
+    rows.push([null, '日期', '公司', '地點', '噸數', '金額', '備註', '']);
+    items.forEach(item => {
+      // 主列：運費（公司+地點+運費）
+      const hasFreight = (Number(item.freight) || 0) > 0;
+      const hasHandling = (Number(item.handling) || 0) > 0;
+      if (hasFreight) {
+        const projectLabel = (hasFreight && hasHandling)
+          ? `(1)${item.location || ''}`
+          : (item.location || '');
+        rows.push([
+          null, item.date, item.project || '',
+          projectLabel,
+          item.tonnage || '',
+          Number(item.freight) || 0,
+          item.remarks || '',
+          ''
+        ]);
+      }
+      if (hasHandling) {
+        const subLabel = hasFreight ? '(2)搬運工資' : (item.location || '搬運工資');
+        rows.push([
+          null,
+          hasFreight ? '' : item.date,
+          hasFreight ? '' : (item.project || ''),
+          subLabel,
+          item.tonnage || '',
+          Number(item.handling) || 0,
+          item.remarks || '',
+          ''
+        ]);
+      }
+    });
+    const total = items.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+    rows.push([]);
+    rows.push([null, '總額', '', '', '', total, '', '']);
+    rows.push([]);
+    rows.push([null, ' -匯款資訊-', '', '', '', '', '', '']);
+    rows.push([null, ' 戶名-温浩辰  |  銀行-053台中銀行-內新分行  |  帳號-0342-0118-3300', '', '', '', '', '', '']);
+    rows.push([null, ' 匯款後煩請來電或訊息通知，開立票據請勿指付抬頭，感謝您的配合。', '', '', '', '', '', '']);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:3},{wch:12},{wch:12},{wch:26},{wch:12},{wch:12},{wch:14},{wch:3}];
+    const safeTitle = customerName.replace(/[\[\]\:\*\?\/\\']/g, '_').slice(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, safeTitle);
+  });
+
+  const fname = `${minguoYear}年${r.month}月份_客戶請款明細.xlsx`;
+  XLSX.writeFile(wb, fname);
+  showToast('Excel 已下載', 'success');
+}
+
+// ===== 司機管理 =====
+function renderDriversList() {
+  const wrap = $('#driversList');
+  if (state.drivers.length === 0) {
+    wrap.innerHTML = `<div class="empty-cell">尚未建立司機</div>`;
+    return;
+  }
+  wrap.innerHTML = state.drivers.map(d => `
+    <div class="list-mgmt-row" data-name="${escapeHtml(d.name)}">
+      <input class="name-input" type="text" value="${escapeHtml(d.name)}" data-orig="${escapeHtml(d.name)}" />
+      <span class="pin-status ${d.hasPin ? 'set' : 'unset'}">${d.hasPin ? '✓ PIN 已設' : '⚠ PIN 未設'}</span>
+      <button class="btn small save-btn" style="display:none;">儲存改名</button>
+      <button class="btn small set-pin-btn">設 PIN</button>
+      <button class="btn small danger del-btn">刪除</button>
+    </div>`).join('');
+  wrap.querySelectorAll('.list-mgmt-row').forEach(row => {
+    const name = row.dataset.name;
+    const input = row.querySelector('.name-input');
+    const saveBtn = row.querySelector('.save-btn');
+    input.addEventListener('input', () => {
+      saveBtn.style.display = input.value !== input.dataset.orig ? '' : 'none';
+    });
+    saveBtn.addEventListener('click', () => renameItem('driver', input.dataset.orig, input.value.trim()));
+    row.querySelector('.set-pin-btn').addEventListener('click', () => openPinModal(name));
+    row.querySelector('.del-btn').addEventListener('click', () => deleteItem('driver', name));
+  });
+}
+
+async function addDriver() {
+  const name = $('#addDriverName').value.trim();
+  const pin = $('#addDriverPin').value.trim();
+  if (!name) return showToast('請填名稱', 'error');
+  if (pin && !/^\d{4}$/.test(pin)) return showToast('PIN 須為 4 位數字', 'error');
+  setLoading(true);
+  try {
+    await adminApi('admin_add_driver', { name, pin });
+    $('#addDriverName').value = '';
+    $('#addDriverPin').value = '';
+    showToast('已新增', 'success');
+    await refreshAll();
+  } catch (err) {
+    showToast('失敗：' + err.message, 'error');
+  } finally { setLoading(false); }
+}
+
+let pinModalDriver = null;
+function openPinModal(driverName) {
+  pinModalDriver = driverName;
+  $('#pinModalTitle').textContent = `設定 ${driverName} 的 PIN`;
+  $('#pinModalInput').value = '';
+  $('#pinModal').classList.add('show');
+  setTimeout(() => $('#pinModalInput').focus(), 100);
+  $('#pinModalConfirm').onclick = async () => {
+    const pin = $('#pinModalInput').value.trim();
+    if (pin && !/^\d{4}$/.test(pin)) return showToast('PIN 須為 4 位數字', 'error');
+    setLoading(true);
+    try {
+      await adminApi('admin_set_driver_pin', { driver: pinModalDriver, pin });
+      $('#pinModal').classList.remove('show');
+      showToast(pin ? `已設 PIN: ${pin}（請告知司機）` : '已清除 PIN', 'success');
+      await refreshAll();
+    } catch (err) {
+      showToast('失敗：' + err.message, 'error');
+    } finally { setLoading(false); }
+  };
+}
+
+async function renameItem(kind, oldName, newName) {
+  if (!newName || newName === oldName) return;
+  const action = kind === 'driver' ? 'admin_rename_driver'
+               : kind === 'customer' ? 'admin_rename_customer' : 'admin_rename_company';
+  setLoading(true);
+  try {
+    const r = await adminApi(action, { oldName, newName });
+    showToast(`已改名 ${r.updated ? `(同步 ${r.updated} 筆紀錄)` : ''}`, 'success');
+    await refreshAll();
+  } catch (err) {
+    showToast('失敗：' + err.message, 'error');
+  } finally { setLoading(false); }
+}
+
+async function deleteItem(kind, name) {
+  const inUse = state.records.filter(r => (kind === 'driver' ? r.driver : kind === 'customer' ? r.customer : r.project) === name).length;
+  const msg = inUse > 0 ? `「${name}」有 ${inUse} 筆歷史紀錄使用中，刪除後紀錄保留但清單裡會移除。確定？` : `確定刪除「${name}」？`;
+  if (!confirm(msg)) return;
+  const action = kind === 'driver' ? 'admin_delete_driver'
+               : kind === 'customer' ? 'admin_delete_customer' : 'admin_delete_company';
+  setLoading(true);
+  try {
+    await adminApi(action, { name });
+    showToast('已刪除', 'success');
+    await refreshAll();
+  } catch (err) {
+    showToast('失敗：' + err.message, 'error');
+  } finally { setLoading(false); }
+}
+
+// ===== 客戶 / 公司管理 =====
+function renderListsMgmt() {
+  const renderList = (wrap, list, kind) => {
+    if (list.length === 0) {
+      wrap.innerHTML = `<div class="empty-cell">清單為空</div>`;
+      return;
+    }
+    wrap.innerHTML = list.slice().sort((a, b) => a.localeCompare(b, 'zh-Hant')).map(name => `
+      <div class="list-mgmt-row" data-name="${escapeHtml(name)}">
+        <input class="name-input" type="text" value="${escapeHtml(name)}" data-orig="${escapeHtml(name)}" />
+        <button class="btn small save-btn" style="display:none;">儲存</button>
+        <button class="btn small danger del-btn">刪除</button>
+      </div>`).join('');
+    wrap.querySelectorAll('.list-mgmt-row').forEach(row => {
+      const name = row.dataset.name;
+      const input = row.querySelector('.name-input');
+      const saveBtn = row.querySelector('.save-btn');
+      input.addEventListener('input', () => {
+        saveBtn.style.display = input.value !== input.dataset.orig ? '' : 'none';
+      });
+      saveBtn.addEventListener('click', () => renameItem(kind, input.dataset.orig, input.value.trim()));
+      row.querySelector('.del-btn').addEventListener('click', () => deleteItem(kind, name));
+    });
+  };
+  renderList($('#customersList'), state.customers, 'customer');
+  renderList($('#companiesList'), state.companies, 'company');
+}
+
+async function addList(kind) {
+  const inputId = kind === 'customer' ? '#addCustomerName' : '#addCompanyName';
+  const action = kind === 'customer' ? 'admin_add_customer' : 'admin_add_company';
+  const name = $(inputId).value.trim();
+  if (!name) return showToast('請填名稱', 'error');
+  setLoading(true);
+  try {
+    await adminApi(action, { name });
+    $(inputId).value = '';
+    showToast('已新增', 'success');
+    await refreshAll();
+  } catch (err) {
+    showToast('失敗：' + err.message, 'error');
+  } finally { setLoading(false); }
+}
+
+// ===== 設定 =====
+async function changeAdminPwd() {
+  const cur = $('#curPwd').value;
+  const newp = $('#newPwd').value;
+  if (!newp) return showToast('請填新密碼', 'error');
+  setLoading(true);
+  try {
+    await api('admin_set_password', { currentPassword: cur, newPassword: newp });
+    state.pwd = newp;
+    sessionStorage.setItem(LS.pwd, newp);
+    $('#curPwd').value = '';
+    $('#newPwd').value = '';
+    showToast('密碼已更新', 'success');
+  } catch (err) {
+    showToast('失敗：' + err.message, 'error');
+  } finally { setLoading(false); }
+}
+
+// ===== PDF 產生（客戶請款單）=====
+function generateInvoicePdf() {
+  const monthVal = $('#invoiceMonth').value;
+  if (!monthVal) return showToast('請選擇月份', 'error');
+  const [y, m] = monthVal.split('-').map(Number);
+  const minguoYear = y - 1911;
+  const monthStr = `${minguoYear}年${m}月份`;
+
+  // 篩選該月份紀錄
+  const monthRecords = state.records.filter(r => {
+    if (!r.date) return false;
+    const [ry, rm] = r.date.split('-').map(Number);
+    return ry === y && rm === m;
+  });
+  if (monthRecords.length === 0) return showToast('該月份沒有紀錄', 'error');
+
+  // 依客戶分組
+  const byCustomer = {};
+  monthRecords.forEach(r => {
+    if (!byCustomer[r.customer]) byCustomer[r.customer] = [];
+    byCustomer[r.customer].push(r);
+  });
+
+  // 取得含稅客戶清單（從 settings 或預設空）
+  const taxCustomers = (state.taxCustomers || []);
+
+  // 組合 HTML
+  const pages = Object.entries(byCustomer).map(([customer, records]) => {
+    const sorted = records.slice().sort((a, b) => a.date.localeCompare(b.date));
+    const taxRate = taxCustomers.includes(customer) ? 0.05 : 0;
+    const total = sorted.reduce((s, r) => s + (Number(r.freight)||0) + (Number(r.handling)||0), 0);
+    const tax = Math.round(total * taxRate);
+    const grand = total + tax;
+
+    // 判斷匯款帳號
+    const altBank = taxCustomers.includes(customer);
+    const bankInfo = altBank
+      ? `戶名-威通運輸實業社温浩辰　｜　銀行-053台中銀行-烏日分行　｜　帳號-048221162655`
+      : `戶名-温浩辰　｜　銀行-053台中銀行-內新分行　｜　帳號-0342-0118-3300`;
+    const bankNote = altBank
+      ? `匯款後煩請來電或訊息通知，感謝您的配合。`
+      : `匯款後煩請來電或訊息通知，開立票據請勿指付抬頭，感謝您的配合。`;
+
+    // 表格列（每筆紀錄拆運費/搬運兩列）
+    let rows = '';
+    sorted.forEach(r => {
+      const freight = Number(r.freight) || 0;
+      const handling = Number(r.handling) || 0;
+      const dateStr = r.date ? r.date.replace(/^\d{4}-/, '').replace('-', '/') : '';
+      if (freight > 0 || handling === 0) {
+        rows += `<tr>
+          <td class="c">${dateStr}</td>
+          <td class="c">${escapeHtml(r.project||'')}</td>
+          <td>${escapeHtml(r.location||'')}</td>
+          <td class="c">${escapeHtml(r.tonnage||'')}</td>
+          <td class="r">${freight > 0 ? freight.toLocaleString() : ''}</td>
+          <td>${escapeHtml(r.remarks||'')}</td>
+        </tr>`;
+      }
+      if (handling > 0) {
+        rows += `<tr>
+          <td class="c">${freight > 0 ? '' : dateStr}</td>
+          <td class="c">${freight > 0 ? '' : escapeHtml(r.project||'')}</td>
+          <td>${escapeHtml(r.location||'')}${freight > 0 ? '－搬運工資' : ''}</td>
+          <td class="c"></td>
+          <td class="r">${handling.toLocaleString()}</td>
+          <td>${freight > 0 ? '' : escapeHtml(r.remarks||'')}</td>
+        </tr>`;
+      }
+    });
+
+    // 彙總列
+    let summaryRows = `
+      <tr class="sum-row">
+        <td colspan="3"></td>
+        <td class="sum-label">小計</td>
+        <td colspan="2" class="sum-val">${total.toLocaleString()}</td>
+      </tr>`;
+    if (taxRate > 0) {
+      summaryRows += `
+      <tr class="sum-row tax-row">
+        <td colspan="3"></td>
+        <td colspan="2" class="tax-label">開發票(稅外加)${Math.round(taxRate*100)}%</td>
+        <td class="sum-val">${tax.toLocaleString()}</td>
+      </tr>`;
+    }
+    summaryRows += `
+      <tr class="total-row-pdf">
+        <td colspan="3"></td>
+        <td class="sum-label">總額</td>
+        <td colspan="2" class="sum-val grand">${grand.toLocaleString()}</td>
+      </tr>`;
+
+    return `
+    <div class="invoice-page">
+      <div class="invoice-title">-威通運輸${monthStr}請款單-</div>
+      <div class="invoice-customer">客戶名稱：${escapeHtml(customer)}</div>
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th class="c">日期</th><th class="c">出貨地</th><th>地點</th>
+            <th class="c">噸數</th><th class="c">金額</th><th>備註</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <table class="summary-table">
+        <colgroup>
+          <col style="width:${100/6}%"><col style="width:${100/6}%"><col style="width:${200/6}%">
+          <col style="width:${100/6}%"><col style="width:${100/6}%"><col style="width:${100/6}%">
+        </colgroup>
+        <tbody>${summaryRows}</tbody>
+      </table>
+      <div class="bank-info">
+        <div class="bank-title">-匯款資訊-</div>
+        <div class="bank-detail">${bankInfo}</div>
+        <div class="bank-note">${bankNote}</div>
+      </div>
+    </div>`;
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>威通運輸${monthStr}請款單</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "微軟正黑體", "Microsoft JhengHei", "PingFang TC", sans-serif;
+    font-size: 12pt;
+    color: #000;
+    background: #fff;
+  }
+  .invoice-page {
+    width: 100%;
+    padding: 16mm 18mm;
+    page-break-after: always;
+    min-height: 100vh;
+  }
+  .invoice-page:last-child { page-break-after: avoid; }
+
+  .invoice-title {
+    font-size: 20pt;
+    font-weight: bold;
+    color: #000066;
+    text-align: center;
+    margin-bottom: 8pt;
+  }
+  .invoice-customer {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-bottom: 10pt;
+  }
+
+  /* 主表格 */
+  .invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12pt;
+    margin-bottom: 0;
+  }
+  .invoice-table thead tr th {
+    background: #F2F2F2;
+    font-weight: bold;
+    font-size: 14pt;
+    padding: 4pt 6pt;
+    border: 1px solid #000;
+    text-align: center;
+  }
+  .invoice-table tbody tr td {
+    padding: 3pt 6pt;
+    border: 1px solid #000;
+    vertical-align: middle;
+  }
+  .invoice-table td.c, .invoice-table th.c { text-align: center; }
+  .invoice-table td.r { text-align: right; }
+
+  /* 訂單分隔（每筆主項上方加粗線）*/
+  .invoice-table tbody tr.sep td { border-top: 1.5px solid #888; padding-top: 5pt; }
+
+  /* 彙總表格 */
+  .summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14pt;
+    margin-top: 0;
+    border-top: none;
+  }
+  .sum-row td, .total-row-pdf td { padding: 3pt 6pt; }
+  .sum-label { font-weight: bold; text-align: left; }
+  .sum-val { text-align: right; font-weight: bold; }
+  .sum-val.grand { font-size: 14pt; }
+  .total-row-pdf td { border-top: 1px solid #000; }
+  .tax-row .tax-label {
+    color: #00B050;
+    font-size: 14pt;
+    font-weight: bold;
+    text-align: left;
+  }
+  .tax-row .sum-val { color: #00B050; }
+
+  /* 匯款資訊 */
+  .bank-info { margin-top: 12pt; font-size: 11pt; }
+  .bank-title { font-weight: bold; margin-bottom: 2pt; }
+  .bank-detail { margin-bottom: 2pt; }
+  .bank-note { color: #C00000; }
+
+  /* 列印設定 */
+  @media print {
+    body { margin: 0; }
+    .invoice-page { padding: 10mm 14mm; min-height: auto; }
+    .no-print { display: none !important; }
+    @page { size: A4; margin: 0; }
+  }
+
+  /* 螢幕預覽工具列 */
+  .print-toolbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: #1e40af; color: #fff;
+    padding: 10px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: sans-serif;
+    z-index: 999;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .print-toolbar .info { font-size: 14px; }
+  .print-toolbar .info strong { font-size: 16px; }
+  .print-toolbar button {
+    background: #fff; color: #1e40af;
+    border: 0; padding: 8px 20px;
+    border-radius: 8px; font-size: 14px;
+    font-weight: bold; cursor: pointer;
+  }
+  .print-toolbar button:hover { background: #e0e7ff; }
+  body { padding-top: 52px; }
+  @media print { body { padding-top: 0; } .print-toolbar { display: none; } }
+</style>
+</head>
+<body>
+<div class="print-toolbar no-print">
+  <div class="info"><strong>威通運輸 ${monthStr}請款單</strong>　共 ${pages.length} 位客戶</div>
+  <button onclick="window.print()">🖨 列印 / 儲存 PDF</button>
+</div>
+${pages.join('\n')}
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  showToast('PDF 預覽已開啟，請在新分頁按「列印」', 'success');
+}
+
+// ===== Excel 匯出（紀錄總覽）=====
+function exportOverviewExcel() {
+  const list = filterRecords();
+  if (list.length === 0) return showToast('沒有可匯出的紀錄', 'error');
+  const sortedAsc = list.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const header = ['序號','日期','司機','客戶名稱','公司/案名','地點','噸數','運費','搬運金額','金額合計','備註'];
+  const rows = [header];
+  sortedAsc.forEach((r, i) => {
+    rows.push([
+      i + 1, r.date, r.driver, r.customer, r.project, r.location, r.tonnage,
+      Number(r.freight) || 0, Number(r.handling) || 0,
+      (Number(r.freight) || 0) + (Number(r.handling) || 0),
+      r.remarks
+    ]);
+  });
+  const sumF = sortedAsc.reduce((s, r) => s + (Number(r.freight)||0), 0);
+  const sumH = sortedAsc.reduce((s, r) => s + (Number(r.handling)||0), 0);
+  rows.push([]);
+  rows.push(['','','','','','','合計', sumF, sumH, sumF + sumH, '']);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:6},{wch:12},{wch:8},{wch:14},{wch:16},{wch:24},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '送貨明細');
+  const ts = new Date();
+  const stamp = `${ts.getFullYear()}${String(ts.getMonth()+1).padStart(2,'0')}${String(ts.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `送貨紀錄_總表_${stamp}.xlsx`);
+  showToast('Excel 已下載', 'success');
+}
+
+init();
+</script>
+</body>
+</html>
