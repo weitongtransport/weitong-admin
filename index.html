@@ -2586,10 +2586,11 @@ async function doDriverLogin() {
     localStorage.setItem('wt_driver_pin', pin);
     driverState.driver = name;
     driverState.pin = pin;
-    driverState.apiUrl = state.apiUrl;
-    $('#loginWrap').style.display = 'none';
-    $('#driverApp').style.display = 'block';
-    await DriverApp.init();
+    // 把登入資訊存好，跳到司機端頁面
+    localStorage.setItem('wt_driver', name);
+    localStorage.setItem('wt_driver_pin', pin);
+    localStorage.setItem('wt_api_url', state.apiUrl);
+    window.location.href = 'driver.html';
   } catch(err) {
     loginErr(err.message);
   } finally {
@@ -2675,13 +2676,10 @@ async function driverApi(action, payload) {
 
 // ===== 顯示控制 =====
 function showLoading(msg) {
-  $('#loadingMsg').textContent = msg || '連線中…';
-  $('#loadingPage').classList.remove('hide');
-  $('#configPage').classList.add('hide');
-  $('#loginPage').classList.add('hide');
-  $('#appRoot').style.display = 'none';
+  // 司機端 loading：直接用 toast 顯示
+  driverShowToast(msg || '連線中…');
 }
-function hideLoading() { $('#loadingPage').classList.add('hide'); }
+function driverHideLoading() { const lp = document.getElementById('driverLoadingPage'); if(lp) lp.classList.add('hide'); }
 function showConfig(errMsg) {
   hideLoading();
   $('#configPage').classList.remove('hide');
@@ -3224,10 +3222,8 @@ async function init() {
       if (data.ok) {
         driverState.driver = savedDriver;
         driverState.pin = savedPin;
-        driverState.apiUrl = state.apiUrl;
-        $('#loginWrap').style.display = 'none';
-        $('#driverApp').style.display = 'block';
-        await DriverApp.init();
+        localStorage.setItem('wt_api_url', state.apiUrl);
+        window.location.href = 'driver.html';
         return;
       }
     } catch(e) {}
@@ -3346,13 +3342,10 @@ async function api(action, payload) {
 
 // ===== 顯示控制 =====
 function showLoading(msg) {
-  $('#loadingMsg').textContent = msg || '連線中…';
-  $('#loadingPage').classList.remove('hide');
-  $('#configPage').classList.add('hide');
-  $('#loginPage').classList.add('hide');
-  $('#appRoot').style.display = 'none';
+  // 司機端 loading：直接用 toast 顯示
+  driverShowToast(msg || '連線中…');
 }
-function hideLoading() { $('#loadingPage').classList.add('hide'); }
+function driverHideLoading() { const lp = document.getElementById('driverLoadingPage'); if(lp) lp.classList.add('hide'); }
 function showConfig(errMsg) {
   hideLoading();
   $('#configPage').classList.remove('hide');
@@ -3378,13 +3371,14 @@ function showLogin(errMsg) {
   else e.style.display = 'none';
 }
 function showApp() {
-  hideLoading();
-  $('#configPage').classList.add('hide');
-  $('#loginPage').classList.add('hide');
-  $('#appRoot').style.display = 'block';
-  $('#currentDriver').textContent = state.driver;
-  $('#monthPill').textContent = thisMonthStr();
-  $('#settingsApiUrl').textContent = state.apiUrl;
+  driverHideLoading();
+  // 司機端 app 已經在 #driverApp 裡，直接更新顯示資訊
+  const nameEl = document.getElementById('currentDriver');
+  const monthEl = document.getElementById('monthPill');
+  const apiEl = document.getElementById('settingsApiUrl');
+  if (nameEl) nameEl.textContent = state.driver || driverState.driver;
+  if (monthEl) monthEl.textContent = thisMonthStr();
+  if (apiEl) apiEl.textContent = state.apiUrl || driverState.apiUrl;
 }
 
 // ===== 啟動流程 =====
@@ -3406,6 +3400,7 @@ async function init() {
     showConfig('無法連到 API：' + err.message);
     return;
   }
+  const state = driverState; // alias
   if (state.driver && state.pin) {
     // 嘗試自動登入
     showLoading('登入中…');
