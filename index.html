@@ -2317,7 +2317,6 @@ function generateInvoicePdf() {
 ${pages.join('\n')}
 
 <!-- ===== 司機端 App ===== -->
-<div id="driverApp" style="display:none;">
 <!-- ==== Main App ==== -->
 <div id="driverApp" style="display:none;">
 
@@ -2590,7 +2589,7 @@ async function doDriverLogin() {
     driverState.apiUrl = state.apiUrl;
     $('#loginWrap').style.display = 'none';
     $('#driverApp').style.display = 'block';
-    await driverInit();
+    await DriverApp.init();
   } catch(err) {
     loginErr(err.message);
   } finally {
@@ -2609,16 +2608,7 @@ const DLS = {
   cacheRecords: 'wt_cache_records',
 };
 
-let driverState = {
-  apiUrl: localStorage.getItem(DLS.apiUrl) || 'https://script.google.com/macros/s/AKfycbxI757ipgDmcBSs86qxxDf69jDNUCG2UNaCQkglUqe8omvmTLEZ3CIdeG3cIoJd0Uei/exec',
-  driver: localStorage.getItem(DLS.driver) || '',
-  pin: localStorage.getItem(DLS.pin) || '',
-  drivers: [],
-  customers: [],
-  companies: [],
-  records: [],
-  range: 'month'
-};
+// state 由外部 driverState 提供
 
 // ===== 工具 =====
 // const $ driver => document.querySelector(s);
@@ -2728,26 +2718,26 @@ function showApp() {
 
 // ===== 啟動流程 =====
 async function driverInit() {
-  bindGlobalEvents();
-  if (!driverState.apiUrl) { showConfig(); return; }
-  showLoading('連線中…');
+  driverBindGlobalEvents();
+  driverState.apiUrl = state.apiUrl;
+  if (!driverState.apiUrl) { driverShowConfig(); return; }
+  driverShowLoading('連線中…');
   try {
-    // 載入司機/客戶/公司清單
     const [d, c, co] = await Promise.all([
-      api('list_drivers'),
-      api('list_customers'),
-      api('list_companies'),
+      driverApi('list_drivers'),
+      driverApi('list_customers'),
+      driverApi('list_companies'),
     ]);
     driverState.drivers = d.data || [];
     driverState.customers = c.data || [];
     driverState.companies = co.data || [];
   } catch (err) {
-    showConfig('無法連到 API：' + err.message);
+    driverShowConfig('無法連到 API：' + err.message);
     return;
   }
   if (driverState.driver && driverState.pin) {
     // 嘗試自動登入
-    showLoading('登入中…');
+    driverShowLoading('登入中…');
     try {
       const r = await driverApi('auth_driver', { name: driverState.driver, pin: driverState.pin });
       if (r.ok) {
@@ -2761,7 +2751,7 @@ async function driverInit() {
     localStorage.removeItem(DLS.driver);
     localStorage.removeItem(DLS.pin);
   }
-  showLogin();
+  driverShowLogin();
 }
 
 async function loadRecords() {
@@ -3237,7 +3227,7 @@ async function init() {
         driverState.apiUrl = state.apiUrl;
         $('#loginWrap').style.display = 'none';
         $('#driverApp').style.display = 'block';
-        await driverInit();
+        await DriverApp.init();
         return;
       }
     } catch(e) {}
@@ -3256,11 +3246,643 @@ async function init() {
   $('#roleBlock').style.display = 'block';
 }
 
+
+// 司機端共用 state（namespace 外面）
+let driverState = {
+  apiUrl: '',
+  driver: localStorage.getItem('wt_driver') || '',
+  pin: localStorage.getItem('wt_driver_pin') || '',
+  drivers: [], customers: [], companies: [], records: [],
+  range: 'month'
+};
+
+// ===== 司機端 Namespace =====
+const DriverApp = (function() {
+'use strict';
+
+
+'use strict';
+
+const LS = {
+  apiUrl: 'wt_api_url',
+  driver: 'wt_driver',
+  pin: 'wt_driver_pin',
+  cacheRecords: 'wt_cache_records',
+};
+
+let state = {
+  apiUrl: localStorage.getItem(LS.apiUrl) || 'https://script.google.com/macros/s/AKfycbxI757ipgDmcBSs86qxxDf69jDNUCG2UNaCQkglUqe8omvmTLEZ3CIdeG3cIoJd0Uei/exec',
+  driver: localStorage.getItem(LS.driver) || '',
+  pin: localStorage.getItem(LS.pin) || '',
+  drivers: [],
+  customers: [],
+  companies: [],
+  records: [],
+  range: 'month'
+};
+
+// ===== 工具 =====
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const fmtMoney = (n) => (n == null || isNaN(n)) ? '$0' : '$' + Number(n).toLocaleString('en-US');
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+const thisMonthStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}`;
+};
+function parseDate(s) {
+  if (!s) return null;
+  const [y, m, d] = String(s).slice(0,10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function inRange(record, range) {
+  if (range === 'all') return true;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const rd = parseDate(record.date);
+  if (!rd) return false;
+  if (range === 'today') return rd.getTime() === today.getTime();
+  if (range === 'week') {
+    const day = today.getDay() || 7;
+    const monday = new Date(today); monday.setDate(today.getDate() - (day - 1));
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    return rd >= monday && rd <= sunday;
+  }
+  if (range === 'month') {
+    return rd.getFullYear() === today.getFullYear() && rd.getMonth() === today.getMonth();
+  }
+  return true;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+}
+function showToast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ===== API 客戶端 =====
+async function api(action, payload) {
+  if (!state.apiUrl) throw new Error('尚未設定 API 網址');
+  // Apps Script 需要避開 preflight：用 text/plain
+  const res = await fetch(state.apiUrl, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action, payload: payload || {} }),
+    redirect: 'follow'
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || '未知錯誤');
+  return data;
+}
+
+// ===== 顯示控制 =====
+function showLoading(msg) {
+  $('#loadingMsg').textContent = msg || '連線中…';
+  $('#loadingPage').classList.remove('hide');
+  $('#configPage').classList.add('hide');
+  $('#loginPage').classList.add('hide');
+  $('#appRoot').style.display = 'none';
+}
+function hideLoading() { $('#loadingPage').classList.add('hide'); }
+function showConfig(errMsg) {
+  hideLoading();
+  $('#configPage').classList.remove('hide');
+  $('#loginPage').classList.add('hide');
+  $('#appRoot').style.display = 'none';
+  $('#configUrlInput').value = state.apiUrl;
+  const e = $('#configErr');
+  if (errMsg) { e.textContent = errMsg; e.style.display = 'block'; }
+  else e.style.display = 'none';
+}
+function showLogin(errMsg) {
+  hideLoading();
+  $('#configPage').classList.add('hide');
+  $('#loginPage').classList.remove('hide');
+  $('#appRoot').style.display = 'none';
+  const sel = $('#loginDriver');
+  sel.innerHTML = '<option value="">請選擇</option>' +
+    state.drivers.map(d => `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)} 師傅</option>`).join('');
+  if (state.driver && state.drivers.some(d => d.name === state.driver)) sel.value = state.driver;
+  $('#loginPin').value = '';
+  const e = $('#loginErr');
+  if (errMsg) { e.textContent = errMsg; e.style.display = 'block'; }
+  else e.style.display = 'none';
+}
+function showApp() {
+  hideLoading();
+  $('#configPage').classList.add('hide');
+  $('#loginPage').classList.add('hide');
+  $('#appRoot').style.display = 'block';
+  $('#currentDriver').textContent = state.driver;
+  $('#monthPill').textContent = thisMonthStr();
+  $('#settingsApiUrl').textContent = state.apiUrl;
+}
+
+// ===== 啟動流程 =====
+async function init() {
+  bindGlobalEvents();
+  if (!state.apiUrl) { showConfig(); return; }
+  showLoading('連線中…');
+  try {
+    // 載入司機/客戶/公司清單
+    const [d, c, co] = await Promise.all([
+      api('list_drivers'),
+      api('list_customers'),
+      api('list_companies'),
+    ]);
+    state.drivers = d.data || [];
+    state.customers = c.data || [];
+    state.companies = co.data || [];
+  } catch (err) {
+    showConfig('無法連到 API：' + err.message);
+    return;
+  }
+  if (state.driver && state.pin) {
+    // 嘗試自動登入
+    showLoading('登入中…');
+    try {
+      const r = await api('auth_driver', { name: state.driver, pin: state.pin });
+      if (r.ok) {
+        await loadRecords();
+        showApp();
+        render();
+        return;
+      }
+    } catch (err) {/*忽略*/}
+    state.driver = ''; state.pin = '';
+    localStorage.removeItem(LS.driver);
+    localStorage.removeItem(LS.pin);
+  }
+  showLogin();
+}
+
+async function loadRecords() {
+  if (!state.driver) return;
+  $('#syncStatus').textContent = '同步中…';
+  try {
+    const r = await api('list_records', { driver: state.driver });
+    state.records = r.data || [];
+    localStorage.setItem(LS.cacheRecords, JSON.stringify(state.records));
+    $('#syncStatus').textContent = '已同步 · ' + new Date().toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'});
+  } catch (err) {
+    showToast('同步失敗：' + err.message);
+    $('#syncStatus').textContent = '⚠ 連線失敗（顯示快取）';
+    try { state.records = JSON.parse(localStorage.getItem(LS.cacheRecords) || '[]'); } catch {}
+  }
+}
+
+// ===== 全域事件綁定 =====
+function bindGlobalEvents() {
+  // Config
+  $('#configSaveBtn').addEventListener('click', async () => {
+    const v = $('#configUrlInput').value.trim();
+    if (!v) return;
+    state.apiUrl = v;
+    localStorage.setItem(LS.apiUrl, v);
+    showLoading('測試連線…');
+    try {
+      await api('ping');
+      await init();
+    } catch (err) {
+      showConfig('連線失敗：' + err.message);
+    }
+  });
+
+  // Login
+  $('#loginBtn').addEventListener('click', doLogin);
+  $('#loginPin').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doLogin();
+  });
+  $('#loginConfigLink').addEventListener('click', () => showConfig());
+
+  // Filter chips
+  $$('.chip').forEach(b => {
+    b.addEventListener('click', () => {
+      $$('.chip').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      state.range = b.dataset.range;
+      render();
+    });
+  });
+
+  // Reload
+  $('#reloadBtn').addEventListener('click', async () => { await loadRecords(); render(); });
+
+  // Logout
+  $('#logoutBtn').addEventListener('click', logout);
+  $('#settingsLogout').addEventListener('click', logout);
+
+  // Add record
+  $('#addBtn').addEventListener('click', () => openSheet());
+  $('#addBtn2').addEventListener('click', () => openSheet());
+  $('#sheetClose').addEventListener('click', closeSheet);
+  $('#sheetMask').addEventListener('click', closeSheet);
+
+  // Picker
+  $('#customerTrigger').addEventListener('click', () => openPicker('customer'));
+  $('#companyTrigger').addEventListener('click', () => openPicker('company'));
+  $('#pickerClose').addEventListener('click', closePicker);
+  $('#pickerMask').addEventListener('click', closePicker);
+  $('#pickerSearch').addEventListener('input', renderPickerOptions);
+  $('#pickerSearch').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const q = $('#pickerSearch').value.trim();
+      const list = pickerCtx ? pickerCtx.list() : [];
+      const exact = list.find(x => x.toLowerCase() === q.toLowerCase());
+      if (exact) { pickerCtx.onPick(exact); closePicker(); }
+      else if (q) pickerAddCurrent();
+    }
+  });
+  $('#pickerAddBtn').addEventListener('click', pickerAddCurrent);
+
+  // 金額即時合計
+  $('#f_freight').addEventListener('input', updateAmountTotal);
+  $('#f_handling').addEventListener('input', updateAmountTotal);
+
+  // Settings
+  $('#settingsBtn').addEventListener('click', openSettings);
+  $('#settingsClose').addEventListener('click', closeSettings);
+  $('#settingsMask').addEventListener('click', closeSettings);
+  $('#changeApiBtn').addEventListener('click', () => { closeSettings(); showConfig(); });
+
+  // Export
+  $('#exportBtn').addEventListener('click', exportExcel);
+}
+
+async function doLogin() {
+  const name = $('#loginDriver').value;
+  const pin = $('#loginPin').value;
+  if (!name) { return loginErrMsg('請選擇司機'); }
+  if (!pin || pin.length < 4) { return loginErrMsg('請輸入 4 位 PIN'); }
+  $('#loginBtn').disabled = true;
+  try {
+    const r = await api('auth_driver', { name, pin });
+    if (!r.ok) throw new Error('PIN 錯誤');
+    state.driver = name; state.pin = pin;
+    localStorage.setItem(LS.driver, name);
+    localStorage.setItem(LS.pin, pin);
+    await loadRecords();
+    showApp();
+    render();
+  } catch (err) {
+    loginErrMsg(err.message);
+  } finally {
+    $('#loginBtn').disabled = false;
+  }
+}
+function loginErrMsg(msg) {
+  const e = $('#loginErr');
+  e.textContent = msg;
+  e.style.display = 'block';
+}
+
+function logout() {
+  state.driver = ''; state.pin = '';
+  localStorage.removeItem(LS.driver);
+  localStorage.removeItem(LS.pin);
+  state.records = [];
+  closeSettings();
+  showLogin();
+}
+
+// ===== 渲染 =====
+function visibleRecords() {
+  let list = state.records.slice();
+  list = list.filter(r => inRange(r, state.range));
+  list.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+  });
+  return list;
+}
+
+function render() {
+  const monthList = state.records.filter(r => inRange(r, 'month'));
+  $('#statCount').innerHTML = `${monthList.length} <span class="small">筆</span>`;
+  $('#statAmount').textContent = fmtMoney(monthList.reduce((s, r) => s + (Number(r.amount) || 0), 0));
+
+  const list = visibleRecords();
+  const area = $('#recordsArea');
+  if (list.length === 0) {
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🚚</div>
+        <div class="title">尚無紀錄</div>
+        <div class="desc">點右下角 ＋ 開始新增送貨紀錄</div>
+      </div>`;
+    return;
+  }
+  const groups = {};
+  list.forEach(r => { (groups[r.date] = groups[r.date] || []).push(r); });
+  const dates = Object.keys(groups).sort().reverse();
+  area.innerHTML = dates.map(d => {
+    const items = groups[d];
+    const dayTotal = items.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    const dt = parseDate(d);
+    const wd = dt ? ['日','一','二','三','四','五','六'][dt.getDay()] : '';
+    return `
+      <div class="day-group">
+        <div class="day-header">
+          <span>${escapeHtml(d)} (週${wd}) · ${items.length} 筆</span>
+          <span class="day-total">${fmtMoney(dayTotal)}</span>
+        </div>
+        ${items.map(renderCard).join('')}
+      </div>`;
+  }).join('');
+  area.querySelectorAll('.record-card').forEach(card => {
+    card.addEventListener('click', () => openSheet(card.dataset.id));
+  });
+}
+
+function renderCard(r) {
+  const project = r.project ? `<span class="project">${escapeHtml(r.project)}</span>` : '';
+  const loc = r.location ? `<span>${escapeHtml(r.location)}</span>` : '';
+  const sep = (project && loc) ? `<span class="sep">·</span>` : '';
+  const tonnage = r.tonnage ? `<span class="badge">${escapeHtml(r.tonnage)}</span>` : '';
+  const remarks = r.remarks ? `<span class="badge gray">${escapeHtml(r.remarks)}</span>` : '';
+  let breakdown = '';
+  if (r.freight && r.handling) breakdown = `運 ${fmtMoney(r.freight)} ＋ 搬 ${fmtMoney(r.handling)}`;
+  else if (r.handling && !r.freight) breakdown = `搬運 ${fmtMoney(r.handling)}`;
+  else if (r.freight && !r.handling) breakdown = `運費 ${fmtMoney(r.freight)}`;
+  return `
+    <div class="record-card" data-id="${escapeHtml(r.id)}">
+      <div class="rc-top">
+        <div class="rc-customer">${escapeHtml(r.customer || '-')}</div>
+        <div class="rc-amount-wrap">
+          <div class="rc-amount">${fmtMoney(r.amount)}</div>
+          ${breakdown ? `<div class="rc-amount-breakdown">${breakdown}</div>` : ''}
+        </div>
+      </div>
+      ${(project || loc) ? `<div class="rc-mid">${project}${sep}${loc}</div>` : ''}
+      ${(tonnage || remarks) ? `<div class="rc-bottom">${tonnage}${remarks}</div>` : ''}
+    </div>`;
+}
+
+// ===== 表單 =====
+let editingId = null;
+let formCustomer = '';
+let formCompany = '';
+
+function setCustomerField(value) {
+  formCustomer = value || '';
+  const lbl = $('#customerLabel');
+  const trig = $('#customerTrigger');
+  lbl.textContent = formCustomer || '點擊選擇客戶';
+  trig.classList.toggle('empty', !formCustomer);
+}
+function setCompanyField(value) {
+  formCompany = value || '';
+  const lbl = $('#companyLabel');
+  const trig = $('#companyTrigger');
+  lbl.textContent = formCompany || '點擊選擇公司';
+  trig.classList.toggle('empty', !formCompany);
+}
+function updateAmountTotal() {
+  const f = Number($('#f_freight').value) || 0;
+  const h = Number($('#f_handling').value) || 0;
+  $('#amountTotalDisplay').textContent = fmtMoney(f + h);
+}
+
+function openSheet(id) {
+  editingId = id || null;
+  const isEdit = !!id;
+  $('#sheetTitle').textContent = isEdit ? '編輯紀錄' : '新增送貨紀錄';
+  if (isEdit) {
+    const r = state.records.find(x => x.id === id);
+    if (!r) return;
+    $('#f_id').value = r.id;
+    $('#f_date').value = r.date || '';
+    setCustomerField(r.customer);
+    setCompanyField(r.project);
+    $('#f_location').value = r.location || '';
+    $('#f_tonnage').value = r.tonnage || '';
+    $('#f_freight').value = r.freight ?? '';
+    $('#f_handling').value = r.handling ?? '';
+    $('#f_remarks').value = r.remarks || '';
+  } else {
+    $('#f_id').value = '';
+    $('#f_date').value = todayStr();
+    setCustomerField(''); setCompanyField('');
+    ['#f_location','#f_tonnage','#f_freight','#f_handling','#f_remarks'].forEach(s => $(s).value = '');
+  }
+  updateAmountTotal();
+  const actions = $('#sheetActions');
+  if (isEdit) {
+    actions.style.gridTemplateColumns = '1fr 1fr 2fr';
+    actions.innerHTML = `
+      <button class="btn-delete" id="deleteBtn" type="button">🗑 刪除</button>
+      <button class="btn-cancel" id="cancelBtn" type="button">取消</button>
+      <button class="btn-save" id="saveBtn" type="button">儲存</button>`;
+    $('#deleteBtn').addEventListener('click', onDelete);
+  } else {
+    actions.style.gridTemplateColumns = '1fr 2fr';
+    actions.innerHTML = `
+      <button class="btn-cancel" id="cancelBtn" type="button">取消</button>
+      <button class="btn-save" id="saveBtn" type="button">儲存</button>`;
+  }
+  $('#cancelBtn').addEventListener('click', closeSheet);
+  $('#saveBtn').addEventListener('click', onSave);
+  $('#sheet').classList.add('show');
+  $('#sheetMask').classList.add('show');
+}
+function closeSheet() {
+  $('#sheet').classList.remove('show');
+  $('#sheetMask').classList.remove('show');
+  editingId = null;
+}
+
+async function onSave() {
+  const date = $('#f_date').value;
+  const customer = formCustomer.trim();
+  const project = formCompany.trim();
+  const freightRaw = $('#f_freight').value;
+  const handlingRaw = $('#f_handling').value;
+  if (!date) return showToast('請填日期');
+  if (!customer) return showToast('請選擇客戶');
+  const freight = freightRaw === '' ? 0 : Number(freightRaw);
+  const handling = handlingRaw === '' ? 0 : Number(handlingRaw);
+  if (isNaN(freight) || isNaN(handling)) return showToast('金額需為數字');
+  if (freight === 0 && handling === 0) return showToast('運費 / 搬運金額 至少填一個');
+
+  const record = {
+    id: editingId || undefined,
+    date, customer, project,
+    location: $('#f_location').value.trim(),
+    tonnage: $('#f_tonnage').value.trim(),
+    freight, handling,
+    amount: freight + handling,
+    remarks: $('#f_remarks').value.trim()
+  };
+
+  $('#saveBtn').disabled = true;
+  $('#saveBtn').textContent = editingId ? '更新中…' : '儲存中…';
+  try {
+    if (editingId) {
+      await api('update_record', { driver: state.driver, pin: state.pin, record });
+    } else {
+      await api('add_record', { driver: state.driver, pin: state.pin, record });
+    }
+    closeSheet();
+    showToast(editingId ? '已更新' : '已新增');
+    await loadRecords();
+    render();
+  } catch (err) {
+    showToast('儲存失敗：' + err.message);
+  } finally {
+    $('#saveBtn').disabled = false;
+    $('#saveBtn').textContent = '儲存';
+  }
+}
+
+async function onDelete() {
+  if (!editingId) return;
+  if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+  try {
+    await api('delete_record', { driver: state.driver, pin: state.pin, id: editingId });
+    closeSheet();
+    showToast('已刪除');
+    await loadRecords();
+    render();
+  } catch (err) {
+    showToast('刪除失敗：' + err.message);
+  }
+}
+
+// ===== Picker =====
+let pickerCtx = null;
+
+function openPicker(kind) {
+  const isCustomer = kind === 'customer';
+  pickerCtx = {
+    kind,
+    current: isCustomer ? formCustomer : formCompany,
+    onPick: (val) => isCustomer ? setCustomerField(val) : setCompanyField(val),
+    list: () => isCustomer ? state.customers : state.companies,
+    addAction: isCustomer ? 'add_customer' : 'add_company'
+  };
+  $('#pickerTitle').textContent = isCustomer ? '選擇客戶' : '選擇公司 / 案名';
+  $('#pickerSearch').value = '';
+  renderPickerOptions();
+  $('#picker').classList.add('show');
+  $('#pickerMask').classList.add('show');
+  setTimeout(() => $('#pickerSearch').focus(), 280);
+}
+function closePicker() {
+  $('#picker').classList.remove('show');
+  $('#pickerMask').classList.remove('show');
+  pickerCtx = null;
+}
+function renderPickerOptions() {
+  if (!pickerCtx) return;
+  const q = $('#pickerSearch').value.trim();
+  const list = pickerCtx.list();
+  const sorted = list.slice().sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+  const filtered = q ? sorted.filter(x => x.toLowerCase().includes(q.toLowerCase())) : sorted;
+  const wrap = $('#pickerOptions');
+  if (filtered.length === 0) {
+    wrap.innerHTML = `<div class="picker-empty">${q ? '找不到符合的項目，可下方新增' : '清單為空，請新增'}</div>`;
+  } else {
+    wrap.innerHTML = filtered.map(name => `
+      <div class="picker-option ${name === pickerCtx.current ? 'current' : ''}" data-name="${escapeHtml(name)}">
+        <span style="flex:1">${escapeHtml(name)}</span>
+      </div>`).join('');
+    wrap.querySelectorAll('.picker-option').forEach(el => {
+      el.addEventListener('click', () => {
+        pickerCtx.onPick(el.dataset.name);
+        closePicker();
+      });
+    });
+  }
+  const addBtn = $('#pickerAddBtn');
+  if (q && !list.some(x => x.toLowerCase() === q.toLowerCase())) {
+    $('#pickerAddLabel').textContent = q;
+    addBtn.style.display = 'block';
+  } else {
+    addBtn.style.display = 'none';
+  }
+}
+async function pickerAddCurrent() {
+  if (!pickerCtx) return;
+  const q = $('#pickerSearch').value.trim();
+  if (!q) return;
+  const action = pickerCtx.addAction;
+  try {
+    await api(action, { driver: state.driver, pin: state.pin, name: q });
+    // 更新本地清單
+    const target = action === 'add_customer' ? state.customers : state.companies;
+    if (!target.some(x => x.toLowerCase() === q.toLowerCase())) target.push(q);
+    pickerCtx.onPick(q);
+    showToast('已新增');
+    closePicker();
+  } catch (err) {
+    showToast('新增失敗：' + err.message);
+  }
+}
+
+// ===== 設定 sheet =====
+function openSettings() {
+  $('#settings').classList.add('show');
+  $('#settingsMask').classList.add('show');
+}
+function closeSettings() {
+  $('#settings').classList.remove('show');
+  $('#settingsMask').classList.remove('show');
+}
+
+// ===== Excel 匯出（只匯目前可見範圍的紀錄）=====
+function exportExcel() {
+  const list = visibleRecords();
+  if (list.length === 0) { showToast('目前沒有可匯出的紀錄'); return; }
+  const rangeLabel = ({month:'本月', week:'本週', today:'今天', all:'全部'})[state.range] || '';
+  const header = ['序號','日期','客戶名稱','公司/案名','地點','噸數','運費','搬運金額','金額合計','備註','司機'];
+  const sortedAsc = list.slice().sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+  });
+  const rows = [header];
+  sortedAsc.forEach((r, i) => {
+    rows.push([
+      i + 1, r.date, r.customer, r.project, r.location, r.tonnage,
+      Number(r.freight) || 0, Number(r.handling) || 0,
+      (Number(r.freight) || 0) + (Number(r.handling) || 0),
+      r.remarks, r.driver
+    ]);
+  });
+  const sumF = sortedAsc.reduce((s, r) => s + (Number(r.freight)||0), 0);
+  const sumH = sortedAsc.reduce((s, r) => s + (Number(r.handling)||0), 0);
+  rows.push([]);
+  rows.push(['','','','','','合計', sumF, sumH, sumF + sumH, '', '']);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:6},{wch:12},{wch:14},{wch:16},{wch:24},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14},{wch:8}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '送貨明細');
+  const ts = new Date();
+  const stamp = `${ts.getFullYear()}${String(ts.getMonth()+1).padStart(2,'0')}${String(ts.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `送貨紀錄_${state.driver}_${rangeLabel}_${stamp}.xlsx`);
+  showToast('Excel 已下載');
+}
+
+init();
+
+
+  return { init: init, loadRecords: loadRecords };
+})();
+
+
 init();
 </script>
 
 <!-- ===== 司機端 App ===== -->
-<div id="driverApp" style="display:none;">
 <!-- ==== Main App ==== -->
 <div id="driverApp" style="display:none;">
 
