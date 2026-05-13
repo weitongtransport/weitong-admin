@@ -673,6 +673,8 @@ async function enterApp() {
 async function refreshAll() {
   setLoading(true, '載入資料中…');
   try {
+    // 先測試 API 是否可達
+    await api('ping');
     const [recs, drvs, cus, cos] = await Promise.all([
       adminApi('admin_list_all_records'),
       api('list_drivers'),
@@ -686,6 +688,7 @@ async function refreshAll() {
     renderFilters();
     renderCurrentTab();
   } catch (err) {
+    console.error('refreshAll error:', err);
     showToast('載入失敗：' + err.message, 'error');
   } finally {
     setLoading(false);
