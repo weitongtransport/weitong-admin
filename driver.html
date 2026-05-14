@@ -1065,12 +1065,24 @@ function renderCard(r) {
   const loc = r.location ? `<span>${escapeHtml(r.location)}</span>` : '';
   const sep = (project && loc) ? `<span class="sep">·</span>` : '';
   const tonnage = r.tonnage ? `<span class="badge">${escapeHtml(r.tonnage)}</span>` : '';
-  // 從 remarks 解析搬運資訊（格式：電梯800才、1F500才 || 備註）
+  // 從 remarks 解析搬運資訊，統一轉成「電梯-800才,走樓梯-3才」格式
   const remarksRaw = r.remarks || '';
   const remarksParts = remarksRaw.split(' || ');
-  const handlingDisplay = remarksParts[0] || '';
+  const rawHandling = remarksParts[0] || '';
   const manualNote = remarksParts[1] || '';
-  const handlingBadge = handlingDisplay ? `<span class="badge gray" style="max-width:calc(100vw - 120px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;" title="${escapeHtml(handlingDisplay)}">${escapeHtml(handlingDisplay)}</span>` : '';
+  function normalizeHandling(str) {
+    if (!str) return '';
+    return str.split(/[、,]/).map(item => {
+      item = item.trim();
+      if (!item) return '';
+      if (item.includes('-')) return item;
+      const m = item.match(/^([^0-9]+)([0-9]+才)$/);
+      if (m) return m[1] + '-' + m[2];
+      return item;
+    }).filter(Boolean).join(',');
+  }
+  const handlingDisplay = normalizeHandling(rawHandling);
+  const handlingBadge = handlingDisplay ? `<span class="badge gray">${escapeHtml(handlingDisplay)}</span>` : '';
   const remarksBadge = manualNote ? `<span class="badge gray">${escapeHtml(manualNote)}</span>` : '';
   return `
     <div class="record-card" data-id="${escapeHtml(r.id)}">
