@@ -400,6 +400,28 @@
     body { max-width: 700px; margin: 0 auto; box-shadow: 0 0 0 1px #e5e7eb; }
   }
 
+  /* 搬運項目多列 */
+  .btn-add-handling {
+    width:100%; margin-top:8px; padding:10px;
+    background:#f1f5f9; border:1.5px dashed #94a3b8;
+    border-radius:10px; font-size:14px; color:#1e40af;
+    font-weight:500;
+  }
+  .handling-row {
+    display:flex; gap:8px; align-items:center;
+    margin-bottom:8px;
+  }
+  .handling-row .select-input { flex:1.5; }
+  .handling-row .weight-input-wrap {
+    display:flex; align-items:center; gap:4px; flex:1;
+  }
+  .handling-row .weight-input-wrap input { flex:1; }
+  .handling-row .weight-unit { font-size:14px; font-weight:600; color:#374151; flex-shrink:0; }
+  .btn-del-handling {
+    flex-shrink:0; width:32px; height:44px;
+    background:#fee2e2; border:0; border-radius:8px;
+    color:#dc2626; font-size:18px; line-height:1;
+  }
   /* 噸數/搬運項目下拉選單行 */
   .tonnage-row { display:flex; gap:8px; align-items:center; }
   .tonnage-row .select-input { flex:1; }
@@ -555,26 +577,10 @@
       </div>
       <input type="hidden" id="f_freight" value="0" />
       <input type="hidden" id="f_handling" value="0" />
-      <div class="form-group" style="margin-top: 14px;">
-        <label>搬運項目</label>
-        <select id="f_handling_type" class="input select-input" onchange="toggleHandlingWeight()">
-          <option value="">無</option>
-          <option value="電梯">電梯</option>
-          <option value="1F">1F</option>
-          <option value="2F">2F</option>
-          <option value="3F">3F</option>
-          <option value="4F">4F</option>
-          <option value="5F">5F</option>
-          <option value="走樓梯">走樓梯</option>
-        </select>
+      <div id="handlingRows" style="margin-top: 14px;">
+        <!-- 搬運項目列由 JS 動態產生 -->
       </div>
-      <div class="form-group" id="handlingWeightGroup" style="display:none;">
-        <label>搬運重量</label>
-        <div class="weight-row">
-          <input type="number" id="f_handling_weight" class="input" inputmode="numeric" placeholder="0" min="0" step="1" />
-          <span class="weight-unit">才</span>
-        </div>
-      </div>
+      <button type="button" class="btn-add-handling" id="addHandlingRowBtn">＋ 新增搬運項目</button>
       <div class="form-group" style="margin-top: 14px;">
         <label>備註</label>
         <input type="text" id="f_remarks" class="input" placeholder="例：其他備註" />
@@ -759,6 +765,7 @@ function showApp() {
   $('#loginPage').classList.add('hide');
   $('#appRoot').style.display = 'block';
   $('#currentDriver').textContent = state.driver;
+  initHandlingRows([]);
   $('#monthPill').textContent = thisMonthStr();
   $('#settingsApiUrl').textContent = state.apiUrl;
 }
@@ -871,7 +878,11 @@ function bindGlobalEvents() {
     const saved = JSON.parse(localStorage.getItem('wt_tonnage_opts') || '[]');
     if (!saved.includes(val.trim())) { saved.push(val.trim()); localStorage.setItem('wt_tonnage_opts', JSON.stringify(saved)); }
   });
-  // 搬運項目為固定選單，不需新增按鈕
+  // 新增搬運項目列
+  const addHandlingBtn = document.getElementById('addHandlingRowBtn');
+  if (addHandlingBtn) addHandlingBtn.addEventListener('click', () => {
+    document.getElementById('handlingRows').appendChild(createHandlingRow());
+  });
   // 載入自訂選項
   function loadCustomOptions() {
     const tonnageOpts = JSON.parse(localStorage.getItem('wt_tonnage_opts') || '[]');
@@ -1044,11 +1055,71 @@ function setCompanyField(value) {
   lbl.textContent = formCompany || '點擊選擇公司';
   trig.classList.toggle('empty', !formCompany);
 }
-function toggleHandlingWeight() {
-  const val = $('#f_handling_type').value;
-  const group = document.getElementById('handlingWeightGroup');
-  if (group) group.style.display = val ? 'block' : 'none';
-  if (!val) { const w = document.getElementById('f_handling_weight'); if(w) w.value = ''; }
+// 搬運項目選單變更時顯示/隱藏重量欄
+function onHandlingTypeChange(sel) {
+  const row = sel.closest('.handling-row');
+  const wrap = row.querySelector('.weight-input-wrap');
+  if (wrap) wrap.style.display = sel.value ? 'flex' : 'none';
+  if (!sel.value) { const w = row.querySelector('input[type=number]'); if(w) w.value=''; }
+}
+
+// 產生一列搬運項目 HTML
+let handlingRowCount = 0;
+function createHandlingRow(typeVal='', weightVal='') {
+  handlingRowCount++;
+  const id = handlingRowCount;
+  const showWeight = typeVal ? 'flex' : 'none';
+  const div = document.createElement('div');
+  div.className = 'handling-row';
+  div.dataset.rid = id;
+  div.innerHTML = `
+    <select class="input select-input" onchange="onHandlingTypeChange(this)">
+      <option value="">無</option>
+      <option value="電梯"${typeVal==='電梯'?' selected':''}>電梯</option>
+      <option value="1F"${typeVal==='1F'?' selected':''}>1F</option>
+      <option value="2F"${typeVal==='2F'?' selected':''}>2F</option>
+      <option value="3F"${typeVal==='3F'?' selected':''}>3F</option>
+      <option value="4F"${typeVal==='4F'?' selected':''}>4F</option>
+      <option value="5F"${typeVal==='5F'?' selected':''}>5F</option>
+      <option value="走樓梯"${typeVal==='走樓梯'?' selected':''}>走樓梯</option>
+    </select>
+    <div class="weight-input-wrap" style="display:${showWeight};">
+      <input type="number" class="input" inputmode="numeric" placeholder="0" min="0" step="1" value="${weightVal}" />
+      <span class="weight-unit">才</span>
+    </div>
+    <button type="button" class="btn-del-handling" onclick="removeHandlingRow(this)" title="刪除">×</button>
+  `;
+  return div;
+}
+
+function removeHandlingRow(btn) {
+  const row = btn.closest('.handling-row');
+  const container = document.getElementById('handlingRows');
+  if (container.children.length > 1) row.remove();
+  else { // 最後一列只清空
+    row.querySelector('select').value = '';
+    const wrap = row.querySelector('.weight-input-wrap');
+    if(wrap) { wrap.style.display='none'; wrap.querySelector('input').value=''; }
+  }
+}
+
+function initHandlingRows(items) {
+  const container = document.getElementById('handlingRows');
+  if (!container) return;
+  container.innerHTML = '';
+  if (items && items.length > 0) {
+    items.forEach(it => container.appendChild(createHandlingRow(it.type, it.weight)));
+  } else {
+    container.appendChild(createHandlingRow());
+  }
+}
+
+function getHandlingData() {
+  const rows = document.querySelectorAll('.handling-row');
+  return Array.from(rows).map(row => ({
+    type: row.querySelector('select').value,
+    weight: row.querySelector('input[type=number]')?.value || ''
+  })).filter(it => it.type);
 }
 
 function updateAmountTotal() {
@@ -1083,7 +1154,7 @@ function openSheet(id) {
     $('#f_date').value = todayStr();
     setCustomerField(''); setCompanyField('');
     ['#f_location','#f_tonnage','#f_freight','#f_handling','#f_remarks','#f_handling_weight'].forEach(s => $(s).value = '');
-    $('#f_handling_type').value = ''; toggleHandlingWeight();
+    initHandlingRows([]);
     $('#f_tonnage').value = '';
   }
   updateAmountTotal();
