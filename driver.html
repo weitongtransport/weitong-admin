@@ -1153,7 +1153,7 @@ function openSheet(id) {
     $('#f_id').value = '';
     $('#f_date').value = todayStr();
     setCustomerField(''); setCompanyField('');
-    ['#f_location','#f_tonnage','#f_freight','#f_handling','#f_remarks','#f_handling_weight'].forEach(s => $(s).value = '');
+    ['#f_location','#f_tonnage','#f_freight','#f_handling','#f_remarks'].forEach(s => { const el=$(s); if(el) el.value=''; });
     initHandlingRows([]);
     $('#f_tonnage').value = '';
   }
