@@ -1062,9 +1062,11 @@ function setCompanyField(value) {
   trig.classList.toggle('empty', !formCompany);
 }
 function updateAmountTotal() {
+  const el = document.getElementById('amountTotalDisplay');
+  if (!el) return;
   const f = Number($('#f_freight').value) || 0;
   const h = Number($('#f_handling').value) || 0;
-  $('#amountTotalDisplay').textContent = fmtMoney(f + h);
+  el.textContent = fmtMoney(f + h);
 }
 
 function openSheet(id) {
