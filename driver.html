@@ -208,6 +208,30 @@
   }
   .rc-mid .project { font-weight: 600; color: #374151; }
   .rc-mid .sep { color: #d1d5db; }
+  .rc-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+  }
+  .rc-btn-edit, .rc-btn-del {
+    flex: 1;
+    padding: 7px;
+    border-radius: 8px;
+    border: 0;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .rc-btn-edit {
+    background: #eff6ff;
+    color: #1e40af;
+  }
+  .rc-btn-del {
+    background: #fef2f2;
+    color: #dc2626;
+  }
   .rc-bottom {
     display: flex; gap: 10px; flex-wrap: wrap;
     font-size: 13px; color: #6b7280;
@@ -401,6 +425,11 @@
   }
 
   /* 搬運項目多列 */
+  .handling-header {
+    display:flex; gap:8px; align-items:center;
+    font-size:13px; font-weight:600; color:#374151;
+    margin-bottom:6px; padding:0 2px;
+  }
   .btn-add-handling {
     width:100%; margin-top:8px; padding:10px;
     background:#f1f5f9; border:1.5px dashed #94a3b8;
@@ -571,16 +600,25 @@
             <option value="">請選擇</option>
             <option value="3.5">3.5</option>
             <option value="1.5">1.5</option>
+            <option value="併車">併車</option>
+            <option value="支援">支援</option>
           </select>
           <button type="button" class="btn-add-option" id="addTonnageBtn" title="新增選項">＋</button>
         </div>
       </div>
       <input type="hidden" id="f_freight" value="0" />
       <input type="hidden" id="f_handling" value="0" />
-      <div id="handlingRows" style="margin-top: 14px;">
-        <!-- 搬運項目列由 JS 動態產生 -->
+      <div style="margin-top: 14px;">
+        <div class="handling-header">
+          <span style="flex:1.5;">搬運項目</span>
+          <span style="flex:1;">搬運重量</span>
+          <span style="width:32px;"></span>
+        </div>
+        <div id="handlingRows">
+          <!-- 搬運項目列由 JS 動態產生 -->
+        </div>
+        <button type="button" class="btn-add-handling" id="addHandlingRowBtn">＋ 新增搬運項目</button>
       </div>
-      <button type="button" class="btn-add-handling" id="addHandlingRowBtn">＋ 新增搬運項目</button>
       <div class="form-group" style="margin-top: 14px;">
         <label>備註</label>
         <input type="text" id="f_remarks" class="input" placeholder="例：其他備註" />
@@ -1007,8 +1045,11 @@ function render() {
         ${items.map(renderCard).join('')}
       </div>`;
   }).join('');
-  area.querySelectorAll('.record-card').forEach(card => {
-    card.addEventListener('click', () => openSheet(card.dataset.id));
+  area.querySelectorAll('.rc-btn-edit').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); openSheet(btn.dataset.id); });
+  });
+  area.querySelectorAll('.rc-btn-del').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); deleteRecord(btn.dataset.id); });
   });
 }
 
@@ -1033,6 +1074,10 @@ function renderCard(r) {
       </div>
       ${(project || loc) ? `<div class="rc-mid">${project}${sep}${loc}</div>` : ''}
       ${(tonnage || remarks) ? `<div class="rc-bottom">${tonnage}${remarks}</div>` : ''}
+      <div class="rc-actions">
+        <button class="rc-btn-edit" data-id="${escapeHtml(r.id)}">✏ 編輯</button>
+        <button class="rc-btn-del" data-id="${escapeHtml(r.id)}">🗑 刪除</button>
+      </div>
     </div>`;
 }
 
@@ -1322,6 +1367,103 @@ function closeSettings() {
 }
 
 // ===== Excel 匯出（只匯目前可見範圍的紀錄）=====
+function exportPdf() {
+  const driver = state.driver || '-';
+  const now = new Date();
+  const minguoYear = now.getFullYear() - 1911;
+  const month = now.getMonth() + 1;
+  const monthStr = `${minguoYear}年${month}月`;
+
+  // 依日期排序
+  const sorted = state.records.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const total = sorted.reduce((s, r) => s + (Number(r.freight)||0) + (Number(r.handling)||0), 0);
+
+  // 產生表格列
+  let rows = '';
+  let prevDate = '';
+  sorted.forEach(r => {
+    const dateStr = r.date ? r.date.replace(/^\d{4}-/, '').replace('-', '/') : '';
+    const isNewDate = dateStr !== prevDate;
+    const sepStyle = (isNewDate && prevDate) ? 'border-top: 1.5px solid #888;' : '';
+    prevDate = dateStr;
+    rows += `<tr style="${sepStyle}">
+      <td class="c">${isNewDate ? dateStr : ''}</td>
+      <td class="c">${escapeHtml(r.customer||'')}</td>
+      <td class="c">${escapeHtml(r.project||'')}</td>
+      <td>${escapeHtml(r.location||'')}</td>
+      <td class="c">${escapeHtml(r.tonnage||'')}</td>
+      <td class="r">${r.amount ? Number(r.amount).toLocaleString() : ''}</td>
+      <td>${escapeHtml(r.remarks||'')}</td>
+    </tr>`;
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>威通運輸${monthStr}對帳單-${driver}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:"微軟正黑體","Microsoft JhengHei","PingFang TC",sans-serif; font-size:12pt; color:#000; }
+  .page { padding:16mm 18mm; }
+  .title { font-size:24pt; font-weight:bold; color:#000066; text-align:center; margin-bottom:8pt; }
+  .driver-name { font-size:14pt; font-weight:bold; margin-bottom:10pt; }
+  table { width:100%; border-collapse:collapse; font-size:12pt; }
+  thead th { background:#F2F2F2; font-weight:bold; font-size:12pt; padding:4pt 6pt; border:1px solid #000; text-align:center; }
+  tbody td { padding:3pt 6pt; border:1px solid #000; vertical-align:middle; }
+  td.c { text-align:center; }
+  td.r { text-align:right; }
+  .total-row td { border-top:1.5px solid #000; font-weight:bold; font-size:13pt; }
+  .toolbar { position:fixed; top:0; left:0; right:0; background:#1e40af; color:#fff; padding:10px 20px; display:flex; justify-content:space-between; align-items:center; z-index:999; }
+  .toolbar button { background:#fff; color:#1e40af; border:0; padding:8px 20px; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer; }
+  body { padding-top:52px; }
+  @media print { body { padding-top:0; } .toolbar { display:none; } @page { size:A4; margin:0; } .page { padding:10mm 14mm; } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <div><strong>威通運輸 ${monthStr}對帳單 - ${escapeHtml(driver)}</strong></div>
+  <button onclick="window.print()">🖨 列印 / 儲存 PDF</button>
+</div>
+<div class="page">
+  <div class="title">-威通運輸${monthStr}對帳單-</div>
+  <div class="driver-name">司機姓名：${escapeHtml(driver)}</div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:60px">日期</th>
+        <th style="width:70px">客戶</th>
+        <th style="width:70px">案名</th>
+        <th>地點</th>
+        <th style="width:55px">車種</th>
+        <th style="width:65px">金額</th>
+        <th style="width:70px">備註</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <table style="margin-top:0;">
+    <colgroup>
+      <col style="width:60px"><col style="width:70px"><col style="width:70px">
+      <col><col style="width:55px"><col style="width:65px"><col style="width:70px">
+    </colgroup>
+    <tbody>
+      <tr class="total-row">
+        <td></td><td></td><td></td><td></td>
+        <td class="c">總計</td>
+        <td class="r">${total.toLocaleString()}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  window.open(URL.createObjectURL(blob), '_blank');
+}
+
 function exportExcel() {
   const list = visibleRecords();
   if (list.length === 0) { showToast('目前沒有可匯出的紀錄'); return; }
