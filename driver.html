@@ -1070,8 +1070,8 @@ function renderCard(r) {
   const remarksParts = remarksRaw.split(' || ');
   const handlingDisplay = remarksParts[0] || '';
   const manualNote = remarksParts[1] || '';
-  const handlingBadge = handlingDisplay ? `<span class="badge gray" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(handlingDisplay)}">${escapeHtml(handlingDisplay)}</span>` : '';
-  const remarksBadge = manualNote ? `<span class="badge gray" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(manualNote)}</span>` : '';
+  const handlingBadge = handlingDisplay ? `<span class="badge gray" style="max-width:calc(100vw - 120px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;" title="${escapeHtml(handlingDisplay)}">${escapeHtml(handlingDisplay)}</span>` : '';
+  const remarksBadge = manualNote ? `<span class="badge gray">${escapeHtml(manualNote)}</span>` : '';
   return `
     <div class="record-card" data-id="${escapeHtml(r.id)}">
       <div class="rc-top">
@@ -1250,7 +1250,7 @@ async function onSave() {
 
   // 收集搬運資料
   const handlingItems = getHandlingData();
-  const handlingStr = handlingItems.map(it => it.weight ? `${it.type}${it.weight}才` : it.type).join('、');
+  const handlingStr = handlingItems.map(it => it.weight ? `${it.type}-${it.weight}才` : it.type).join(',');
   const manualRemarks = $('#f_remarks').value.trim();
   // 搬運資訊存在 remarks 前段，用 || 分隔備註
   const combinedRemarks = [handlingStr, manualRemarks].filter(Boolean).join(' || ');
