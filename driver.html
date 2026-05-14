@@ -556,8 +556,8 @@
 <button class="fab" id="addBtn" aria-label="新增送貨紀錄">＋</button>
 
 <nav class="bottom-bar">
-  <button class="bb-btn secondary" id="exportBtn">⬇ 下載 Excel</button>
-  <button class="bb-btn primary" id="addBtn2">＋ 新增送貨紀錄</button>
+
+  <button class="bb-btn primary" style="width:100%" id="addBtn2">＋ 新增送貨紀錄</button>
 </nav>
 
 </div>
@@ -611,8 +611,8 @@
       <div style="margin-top: 14px;">
         <div class="handling-header">
           <span style="flex:1.5;">搬運項目</span>
-          <span style="flex:1;">搬運重量</span>
-          <span style="width:32px;"></span>
+          <span style="flex:1; padding-left:8px;">搬運重量</span>
+          <span style="width:40px;"></span>
         </div>
         <div id="handlingRows">
           <!-- 搬運項目列由 JS 動態產生 -->
@@ -1118,7 +1118,7 @@ function createHandlingRow(typeVal='', weightVal='') {
   div.className = 'handling-row';
   div.dataset.rid = id;
   div.innerHTML = `
-    <select class="input select-input" onchange="onHandlingTypeChange(this)">
+    <select class="input select-input" style="flex:1.5;" onchange="onHandlingTypeChange(this)">
       <option value="">無</option>
       <option value="電梯"${typeVal==='電梯'?' selected':''}>電梯</option>
       <option value="1F"${typeVal==='1F'?' selected':''}>1F</option>
@@ -1128,11 +1128,13 @@ function createHandlingRow(typeVal='', weightVal='') {
       <option value="5F"${typeVal==='5F'?' selected':''}>5F</option>
       <option value="走樓梯"${typeVal==='走樓梯'?' selected':''}>走樓梯</option>
     </select>
-    <div class="weight-input-wrap" style="display:${showWeight};">
-      <input type="number" class="input" inputmode="numeric" placeholder="0" min="0" step="1" value="${weightVal}" />
+    <div class="weight-input-wrap" style="flex:1; display:${showWeight}; align-items:center; gap:4px;">
+      <input type="number" class="input" style="flex:1;" inputmode="numeric" placeholder="0" min="0" step="1" value="${weightVal}" />
       <span class="weight-unit">才</span>
     </div>
-    <button type="button" class="btn-del-handling" onclick="removeHandlingRow(this)" title="刪除">×</button>
+    <div style="width:40px; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+      <button type="button" class="btn-del-handling" onclick="removeHandlingRow(this)" title="刪除">×</button>
+    </div>
   `;
   return div;
 }
