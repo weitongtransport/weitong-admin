@@ -108,6 +108,9 @@
   .brand { font-size: 17px; font-weight: 700; letter-spacing: 0.5px; }
   .header-actions { display: flex; align-items: center; gap: 6px; }
   .month-pill {
+    -webkit-appearance: none;
+    cursor: pointer;
+    border: 0;
     background: rgba(255,255,255,0.18); border-radius: 999px;
     padding: 4px 12px; font-size: 13px; font-weight: 500;
   }
@@ -265,7 +268,7 @@
     background: #fff;
     border-top: 1px solid #e5e7eb;
     padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    display: flex; justify-content: center;
     z-index: 40;
   }
   .bb-btn { border: 0; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; }
@@ -428,8 +431,11 @@
   .handling-header {
     display:flex; gap:8px; align-items:center;
     font-size:13px; font-weight:600; color:#374151;
-    margin-bottom:6px; padding:0 2px;
+    margin-bottom:6px;
   }
+  .handling-header .h-type { flex:1.5; min-width:0; }
+  .handling-header .h-weight { flex:1; min-width:0; padding-left:0; }
+  .handling-header .h-del { width:40px; flex-shrink:0; }
   .btn-add-handling {
     width:100%; margin-top:8px; padding:10px;
     background:#f1f5f9; border:1.5px dashed #94a3b8;
@@ -440,14 +446,15 @@
     display:flex; gap:8px; align-items:center;
     margin-bottom:8px;
   }
-  .handling-row .select-input { flex:1.5; }
+  .handling-row .select-input { flex:1.5; min-width:0; }
   .handling-row .weight-input-wrap {
-    display:flex; align-items:center; gap:4px; flex:1;
+    flex:1; min-width:0;
+    display:flex; align-items:center; gap:4px;
   }
-  .handling-row .weight-input-wrap input { flex:1; }
+  .handling-row .weight-input-wrap input { flex:1; min-width:0; }
   .handling-row .weight-unit { font-size:14px; font-weight:600; color:#374151; flex-shrink:0; }
   .btn-del-handling {
-    flex-shrink:0; width:32px; height:44px;
+    flex-shrink:0; width:40px; height:44px;
     background:#fee2e2; border:0; border-radius:8px;
     color:#dc2626; font-size:18px; line-height:1;
   }
@@ -518,7 +525,7 @@
   <div class="header-row">
     <div class="brand-wrap"><span class="brand">威通運輸 · 送貨紀錄</span></div>
     <div class="header-actions">
-      <span class="month-pill" id="monthPill">2026/05</span>
+      <input type="month" class="month-pill" id="monthPill" />
       <button class="gear-btn" id="settingsBtn" aria-label="設定">⚙</button>
     </div>
   </div>
@@ -533,10 +540,7 @@
     <div class="stat-label">本月筆數</div>
     <div class="stat-value" id="statCount">0 <span class="small">筆</span></div>
   </div>
-  <div class="stat-card">
-    <div class="stat-label">本月金額</div>
-    <div class="stat-value" id="statAmount">$0</div>
-  </div>
+  
 </section>
 
 <div class="filter-bar" id="filterBar">
@@ -553,11 +557,9 @@
 
 <main id="recordsArea"></main>
 
-<button class="fab" id="addBtn" aria-label="新增送貨紀錄">＋</button>
 
-<nav class="bottom-bar">
-
-  <button class="bb-btn primary" style="width:100%" id="addBtn2">＋ 新增送貨紀錄</button>
+<nav class="bottom-bar" style="justify-content:center; padding:12px 16px;">
+  <button class="bb-btn primary" style="width:auto; padding:12px 40px; font-size:15px;" id="addBtn2">＋ 新增送貨紀錄</button>
 </nav>
 
 </div>
@@ -610,9 +612,9 @@
       <input type="hidden" id="f_handling" value="0" />
       <div style="margin-top: 14px;">
         <div class="handling-header">
-          <span style="flex:1.5;">搬運項目</span>
-          <span style="flex:1; padding-left:8px;">搬運重量</span>
-          <span style="width:40px;"></span>
+          <span class="h-type">搬運項目</span>
+          <span class="h-weight">搬運重量</span>
+          <span class="h-del"></span>
         </div>
         <div id="handlingRows">
           <!-- 搬運項目列由 JS 動態產生 -->
@@ -731,7 +733,9 @@ function inRange(record, range) {
     return rd >= monday && rd <= sunday;
   }
   if (range === 'month') {
-    return rd.getFullYear() === today.getFullYear() && rd.getMonth() === today.getMonth();
+    const sel = state.selectedMonth || `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+    const [sy, sm] = sel.split('-').map(Number);
+    return rd.getFullYear() === sy && (rd.getMonth()+1) === sm;
   }
   return true;
 }
@@ -804,7 +808,15 @@ function showApp() {
   $('#appRoot').style.display = 'block';
   $('#currentDriver').textContent = state.driver;
   initHandlingRows([]);
-  $('#monthPill').textContent = thisMonthStr();
+  // 初始化月份選擇器
+  const now = new Date();
+  $('#monthPill').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  state.selectedMonth = $('#monthPill').value;
+  $('#monthPill').addEventListener('change', () => {
+    state.selectedMonth = $('#monthPill').value;
+    state.range = 'month';
+    render();
+  });
   $('#settingsApiUrl').textContent = state.apiUrl;
 }
 
@@ -903,7 +915,6 @@ function bindGlobalEvents() {
   $('#settingsLogout').addEventListener('click', logout);
 
   // Add record
-  $('#addBtn').addEventListener('click', () => openSheet());
   // 新增噸數選項
   $('#addTonnageBtn').addEventListener('click', () => {
     const val = prompt('輸入新的噸數選項：');
@@ -962,7 +973,6 @@ function bindGlobalEvents() {
   $('#changeApiBtn').addEventListener('click', () => { closeSettings(); showConfig(); });
 
   // Export
-  $('#exportBtn').addEventListener('click', exportExcel);
 }
 
 async function doLogin() {
@@ -1040,17 +1050,12 @@ function render() {
       <div class="day-group">
         <div class="day-header">
           <span>${escapeHtml(d)} (週${wd}) · ${items.length} 筆</span>
-          <span class="day-total">${fmtMoney(dayTotal)}</span>
+          
         </div>
         ${items.map(renderCard).join('')}
       </div>`;
   }).join('');
-  area.querySelectorAll('.rc-btn-edit').forEach(btn => {
-    btn.addEventListener('click', (e) => { e.stopPropagation(); openSheet(btn.dataset.id); });
-  });
-  area.querySelectorAll('.rc-btn-del').forEach(btn => {
-    btn.addEventListener('click', (e) => { e.stopPropagation(); deleteRecord(btn.dataset.id); });
-  });
+  // 編輯/刪除用 onclick 直接綁定
 }
 
 function renderCard(r) {
@@ -1058,25 +1063,23 @@ function renderCard(r) {
   const loc = r.location ? `<span>${escapeHtml(r.location)}</span>` : '';
   const sep = (project && loc) ? `<span class="sep">·</span>` : '';
   const tonnage = r.tonnage ? `<span class="badge">${escapeHtml(r.tonnage)}</span>` : '';
-  const remarks = r.remarks ? `<span class="badge gray">${escapeHtml(r.remarks)}</span>` : '';
-  let breakdown = '';
-  if (r.freight && r.handling) breakdown = `運 ${fmtMoney(r.freight)} ＋ 搬 ${fmtMoney(r.handling)}`;
-  else if (r.handling && !r.freight) breakdown = `搬運 ${fmtMoney(r.handling)}`;
-  else if (r.freight && !r.handling) breakdown = `運費 ${fmtMoney(r.freight)}`;
+  // 搬運資訊：優先從 handlingInfo，其次從 remarks 解析
+  const handlingInfoRaw = r.handlingInfo || '';
+  const remarksRaw = r.remarks || '';
+  // 組合顯示：搬運項目+重量
+  const handlingDisplay = handlingInfoRaw || '';
+  const handlingBadge = handlingDisplay ? `<span class="badge gray" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(handlingDisplay)}">${escapeHtml(handlingDisplay)}</span>` : '';
+  const remarksBadge = remarksRaw ? `<span class="badge gray" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(remarksRaw)}</span>` : '';
   return `
     <div class="record-card" data-id="${escapeHtml(r.id)}">
       <div class="rc-top">
         <div class="rc-customer">${escapeHtml(r.customer || '-')}</div>
-        <div class="rc-amount-wrap">
-          <div class="rc-amount">${fmtMoney(r.amount)}</div>
-          ${breakdown ? `<div class="rc-amount-breakdown">${breakdown}</div>` : ''}
-        </div>
       </div>
       ${(project || loc) ? `<div class="rc-mid">${project}${sep}${loc}</div>` : ''}
-      ${(tonnage || remarks) ? `<div class="rc-bottom">${tonnage}${remarks}</div>` : ''}
+      ${(tonnage || handlingBadge || remarksBadge) ? `<div class="rc-bottom">${tonnage}${handlingBadge}${remarksBadge}</div>` : ''}
       <div class="rc-actions">
-        <button class="rc-btn-edit" data-id="${escapeHtml(r.id)}">✏ 編輯</button>
-        <button class="rc-btn-del" data-id="${escapeHtml(r.id)}">🗑 刪除</button>
+        <button class="rc-btn-edit" onclick="openSheet('${escapeHtml(r.id)}')">✏ 編輯</button>
+        <button class="rc-btn-del" onclick="deleteRecord('${escapeHtml(r.id)}')">🗑 刪除</button>
       </div>
     </div>`;
 }
