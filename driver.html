@@ -817,7 +817,7 @@ function showApp() {
     state.range = 'month';
     render();
   });
-  $('#settingsApiUrl').textContent = state.apiUrl;
+  const suEl = document.getElementById('settingsApiUrl'); if (suEl) suEl.textContent = state.apiUrl;
 }
 
 // ===== 啟動流程 =====
@@ -1024,7 +1024,8 @@ function visibleRecords() {
 
 function render() {
   const monthList = state.records.filter(r => inRange(r, 'month'));
-  $('#statCount').innerHTML = `${monthList.length} <span class="small">筆</span>`;
+  const statCountEl = document.getElementById('statCount');
+  if (statCountEl) statCountEl.innerHTML = `${monthList.length} <span class="small">筆</span>`;
   const statAmountEl = document.getElementById('statAmount');
   if (statAmountEl) statAmountEl.textContent = fmtMoney(monthList.reduce((s, r) => s + (Number(r.amount) || 0), 0));
 
