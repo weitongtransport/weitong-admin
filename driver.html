@@ -1065,13 +1065,13 @@ function renderCard(r) {
   const loc = r.location ? `<span>${escapeHtml(r.location)}</span>` : '';
   const sep = (project && loc) ? `<span class="sep">·</span>` : '';
   const tonnage = r.tonnage ? `<span class="badge">${escapeHtml(r.tonnage)}</span>` : '';
-  // 搬運資訊：優先從 handlingInfo，其次從 remarks 解析
-  const handlingInfoRaw = r.handlingInfo || '';
+  // 從 remarks 解析搬運資訊（格式：電梯800才、1F500才 || 備註）
   const remarksRaw = r.remarks || '';
-  // 組合顯示：搬運項目+重量
-  const handlingDisplay = handlingInfoRaw || '';
-  const handlingBadge = handlingDisplay ? `<span class="badge gray" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(handlingDisplay)}">${escapeHtml(handlingDisplay)}</span>` : '';
-  const remarksBadge = remarksRaw ? `<span class="badge gray" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(remarksRaw)}</span>` : '';
+  const remarksParts = remarksRaw.split(' || ');
+  const handlingDisplay = remarksParts[0] || '';
+  const manualNote = remarksParts[1] || '';
+  const handlingBadge = handlingDisplay ? `<span class="badge gray" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(handlingDisplay)}">${escapeHtml(handlingDisplay)}</span>` : '';
+  const remarksBadge = manualNote ? `<span class="badge gray" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(manualNote)}</span>` : '';
   return `
     <div class="record-card" data-id="${escapeHtml(r.id)}">
       <div class="rc-top">
@@ -1248,6 +1248,13 @@ async function onSave() {
   if (isNaN(freight) || isNaN(handling)) return showToast('金額需為數字');
   // 運費/搬運金額不再必填
 
+  // 收集搬運資料
+  const handlingItems = getHandlingData();
+  const handlingStr = handlingItems.map(it => it.weight ? `${it.type}${it.weight}才` : it.type).join('、');
+  const manualRemarks = $('#f_remarks').value.trim();
+  // 搬運資訊存在 remarks 前段，用 || 分隔備註
+  const combinedRemarks = [handlingStr, manualRemarks].filter(Boolean).join(' || ');
+
   const record = {
     id: editingId || undefined,
     date, customer, project,
@@ -1255,7 +1262,7 @@ async function onSave() {
     tonnage: $('#f_tonnage').value.trim(),
     freight, handling,
     amount: freight + handling,
-    remarks: $('#f_remarks').value.trim()
+    remarks: combinedRemarks
   };
 
   $('#saveBtn').disabled = true;
