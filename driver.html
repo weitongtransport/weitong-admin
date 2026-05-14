@@ -1076,8 +1076,9 @@ function renderCard(r) {
       item = item.trim();
       if (!item) return '';
       if (item.includes('-')) return item;
-      const m = item.match(/^([^0-9]+)([0-9]+才)$/);
-      if (m) return m[1] + '-' + m[2];
+      // 在最後一段數字+才 前面插入橫槓（例：電梯800才 → 電梯-800才，3F500才 → 3F-500才）
+      const m = item.match(/^(.*?)([0-9]+才)$/);
+      if (m && m[1]) return m[1] + '-' + m[2];
       return item;
     }).filter(Boolean).join(',');
   }
