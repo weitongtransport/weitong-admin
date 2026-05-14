@@ -555,29 +555,24 @@
       </div>
       <input type="hidden" id="f_freight" value="0" />
       <input type="hidden" id="f_handling" value="0" />
-      <div class="form-row" style="margin-top: 14px; align-items: flex-end;">
-        <div class="form-group" style="flex:1.5;">
-          <label>搬運項目</label>
-          <div class="tonnage-row">
-            <select id="f_handling_type" class="input select-input">
-              <option value="">無</option>
-              <option value="電梯">電梯</option>
-              <option value="1F">1F</option>
-              <option value="2F">2F</option>
-              <option value="3F">3F</option>
-              <option value="4F">4F</option>
-              <option value="5F">5F</option>
-              <option value="走樓梯">走樓梯</option>
-            </select>
-            <button type="button" class="btn-add-option" id="addHandlingTypeBtn" title="新增項目">＋</button>
-          </div>
-        </div>
-        <div class="form-group" style="flex:1;">
-          <label>搬運重量</label>
-          <div class="weight-row">
-            <input type="number" id="f_handling_weight" class="input" inputmode="numeric" placeholder="0" min="0" step="1" />
-            <span class="weight-unit">才</span>
-          </div>
+      <div class="form-group" style="margin-top: 14px;">
+        <label>搬運項目</label>
+        <select id="f_handling_type" class="input select-input" onchange="toggleHandlingWeight()">
+          <option value="">無</option>
+          <option value="電梯">電梯</option>
+          <option value="1F">1F</option>
+          <option value="2F">2F</option>
+          <option value="3F">3F</option>
+          <option value="4F">4F</option>
+          <option value="5F">5F</option>
+          <option value="走樓梯">走樓梯</option>
+        </select>
+      </div>
+      <div class="form-group" id="handlingWeightGroup" style="display:none;">
+        <label>搬運重量</label>
+        <div class="weight-row">
+          <input type="number" id="f_handling_weight" class="input" inputmode="numeric" placeholder="0" min="0" step="1" />
+          <span class="weight-unit">才</span>
         </div>
       </div>
       <div class="form-group" style="margin-top: 14px;">
@@ -876,25 +871,13 @@ function bindGlobalEvents() {
     const saved = JSON.parse(localStorage.getItem('wt_tonnage_opts') || '[]');
     if (!saved.includes(val.trim())) { saved.push(val.trim()); localStorage.setItem('wt_tonnage_opts', JSON.stringify(saved)); }
   });
-  // 新增搬運項目選項
-  $('#addHandlingTypeBtn').addEventListener('click', () => {
-    const val = prompt('輸入新的搬運項目：');
-    if (!val || !val.trim()) return;
-    const sel = $('#f_handling_type');
-    const opt = new Option(val.trim(), val.trim());
-    sel.add(opt);
-    sel.value = val.trim();
-    const saved = JSON.parse(localStorage.getItem('wt_handling_opts') || '[]');
-    if (!saved.includes(val.trim())) { saved.push(val.trim()); localStorage.setItem('wt_handling_opts', JSON.stringify(saved)); }
-  });
+  // 搬運項目為固定選單，不需新增按鈕
   // 載入自訂選項
   function loadCustomOptions() {
     const tonnageOpts = JSON.parse(localStorage.getItem('wt_tonnage_opts') || '[]');
     const sel = $('#f_tonnage');
     tonnageOpts.forEach(v => { if (![...sel.options].some(o => o.value === v)) sel.add(new Option(v, v)); });
-    const handlingOpts = JSON.parse(localStorage.getItem('wt_handling_opts') || '[]');
-    const hSel = $('#f_handling_type');
-    handlingOpts.forEach(v => { if (![...hSel.options].some(o => o.value === v)) hSel.add(new Option(v, v)); });
+    // 搬運項目為固定選單
   }
   loadCustomOptions();
   $('#addBtn2').addEventListener('click', () => openSheet());
@@ -1061,6 +1044,13 @@ function setCompanyField(value) {
   lbl.textContent = formCompany || '點擊選擇公司';
   trig.classList.toggle('empty', !formCompany);
 }
+function toggleHandlingWeight() {
+  const val = $('#f_handling_type').value;
+  const group = document.getElementById('handlingWeightGroup');
+  if (group) group.style.display = val ? 'block' : 'none';
+  if (!val) { const w = document.getElementById('f_handling_weight'); if(w) w.value = ''; }
+}
+
 function updateAmountTotal() {
   const el = document.getElementById('amountTotalDisplay');
   if (!el) return;
@@ -1093,7 +1083,7 @@ function openSheet(id) {
     $('#f_date').value = todayStr();
     setCustomerField(''); setCompanyField('');
     ['#f_location','#f_tonnage','#f_freight','#f_handling','#f_remarks','#f_handling_weight'].forEach(s => $(s).value = '');
-    $('#f_handling_type').value = '';
+    $('#f_handling_type').value = ''; toggleHandlingWeight();
     $('#f_tonnage').value = '';
   }
   updateAmountTotal();
