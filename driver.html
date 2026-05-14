@@ -399,6 +399,28 @@
   @media (min-width: 700px) {
     body { max-width: 700px; margin: 0 auto; box-shadow: 0 0 0 1px #e5e7eb; }
   }
+
+  /* 噸數/搬運項目下拉選單行 */
+  .tonnage-row { display:flex; gap:8px; align-items:center; }
+  .tonnage-row .select-input { flex:1; }
+  .btn-add-option {
+    flex-shrink:0; width:36px; height:44px;
+    background:#f1f5f9; border:1px solid #cbd5e1;
+    border-radius:10px; font-size:18px; color:#1e40af;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .weight-row { display:flex; gap:8px; align-items:center; }
+  .weight-row .input { flex:1; }
+  .weight-unit {
+    font-size:15px; font-weight:600; color:#374151;
+    flex-shrink:0; padding-right:4px;
+  }
+  .select-input {
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center;
+    padding-right:32px;
+  }
 </style>
 </head>
 <body>
@@ -450,7 +472,7 @@
     </div>
   </div>
   <div class="driver-info">
-    <div><span class="name" id="currentDriver">-</span><span class="role">師傅</span></div>
+    <div><span class="name" id="currentDriver">-</span></div>
     <button class="logout" id="logoutBtn">登出</button>
   </div>
 </header>
@@ -511,9 +533,9 @@
         </button>
       </div>
       <div class="form-group">
-        <label>公司 / 案名</label>
+        <label>載貨地 / 案名</label>
         <button type="button" class="picker-trigger empty" id="companyTrigger">
-          <span id="companyLabel">點擊選擇公司</span><span class="arrow">▼</span>
+          <span id="companyLabel">點擊選擇載貨地</span><span class="arrow">▼</span>
         </button>
       </div>
       <div class="form-group">
@@ -522,24 +544,45 @@
       </div>
       <div class="form-group">
         <label>噸數</label>
-        <input type="text" id="f_tonnage" class="input" placeholder="例：3.5 / 220kg" />
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>運費</label>
-          <input type="number" id="f_freight" class="input" inputmode="numeric" placeholder="$" min="0" step="1" />
-        </div>
-        <div class="form-group">
-          <label>搬運金額</label>
-          <input type="number" id="f_handling" class="input" inputmode="numeric" placeholder="$" min="0" step="1" />
+        <div class="tonnage-row">
+          <select id="f_tonnage" class="input select-input">
+            <option value="">請選擇</option>
+            <option value="3.5">3.5</option>
+            <option value="1.5">1.5</option>
+          </select>
+          <button type="button" class="btn-add-option" id="addTonnageBtn" title="新增選項">＋</button>
         </div>
       </div>
-      <div class="amount-total">
-        <span>合計</span><span class="total-num" id="amountTotalDisplay">$0</span>
+      <input type="hidden" id="f_freight" value="0" />
+      <input type="hidden" id="f_handling" value="0" />
+      <div class="form-row" style="margin-top: 14px; align-items: flex-end;">
+        <div class="form-group" style="flex:1.5;">
+          <label>搬運項目</label>
+          <div class="tonnage-row">
+            <select id="f_handling_type" class="input select-input">
+              <option value="">無</option>
+              <option value="電梯">電梯</option>
+              <option value="1F">1F</option>
+              <option value="2F">2F</option>
+              <option value="3F">3F</option>
+              <option value="4F">4F</option>
+              <option value="5F">5F</option>
+              <option value="走樓梯">走樓梯</option>
+            </select>
+            <button type="button" class="btn-add-option" id="addHandlingTypeBtn" title="新增項目">＋</button>
+          </div>
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label>搬運重量</label>
+          <div class="weight-row">
+            <input type="number" id="f_handling_weight" class="input" inputmode="numeric" placeholder="0" min="0" step="1" />
+            <span class="weight-unit">才</span>
+          </div>
+        </div>
       </div>
       <div class="form-group" style="margin-top: 14px;">
         <label>備註</label>
-        <input type="text" id="f_remarks" class="input" placeholder="例：電梯 / 1F / 5D5" />
+        <input type="text" id="f_remarks" class="input" placeholder="例：其他備註" />
       </div>
     </form>
   </div>
@@ -821,6 +864,39 @@ function bindGlobalEvents() {
 
   // Add record
   $('#addBtn').addEventListener('click', () => openSheet());
+  // 新增噸數選項
+  $('#addTonnageBtn').addEventListener('click', () => {
+    const val = prompt('輸入新的噸數選項：');
+    if (!val || !val.trim()) return;
+    const sel = $('#f_tonnage');
+    const opt = new Option(val.trim(), val.trim());
+    sel.add(opt);
+    sel.value = val.trim();
+    // 存到 localStorage
+    const saved = JSON.parse(localStorage.getItem('wt_tonnage_opts') || '[]');
+    if (!saved.includes(val.trim())) { saved.push(val.trim()); localStorage.setItem('wt_tonnage_opts', JSON.stringify(saved)); }
+  });
+  // 新增搬運項目選項
+  $('#addHandlingTypeBtn').addEventListener('click', () => {
+    const val = prompt('輸入新的搬運項目：');
+    if (!val || !val.trim()) return;
+    const sel = $('#f_handling_type');
+    const opt = new Option(val.trim(), val.trim());
+    sel.add(opt);
+    sel.value = val.trim();
+    const saved = JSON.parse(localStorage.getItem('wt_handling_opts') || '[]');
+    if (!saved.includes(val.trim())) { saved.push(val.trim()); localStorage.setItem('wt_handling_opts', JSON.stringify(saved)); }
+  });
+  // 載入自訂選項
+  function loadCustomOptions() {
+    const tonnageOpts = JSON.parse(localStorage.getItem('wt_tonnage_opts') || '[]');
+    const sel = $('#f_tonnage');
+    tonnageOpts.forEach(v => { if (![...sel.options].some(o => o.value === v)) sel.add(new Option(v, v)); });
+    const handlingOpts = JSON.parse(localStorage.getItem('wt_handling_opts') || '[]');
+    const hSel = $('#f_handling_type');
+    handlingOpts.forEach(v => { if (![...hSel.options].some(o => o.value === v)) hSel.add(new Option(v, v)); });
+  }
+  loadCustomOptions();
   $('#addBtn2').addEventListener('click', () => openSheet());
   $('#sheetClose').addEventListener('click', closeSheet);
   $('#sheetMask').addEventListener('click', closeSheet);
@@ -1003,7 +1079,10 @@ function openSheet(id) {
     setCustomerField(r.customer);
     setCompanyField(r.project);
     $('#f_location').value = r.location || '';
-    $('#f_tonnage').value = r.tonnage || '';
+    // 設定噸數下拉
+    const tn = $('#f_tonnage');
+    const tv = r.tonnage || '';
+    if ([...tn.options].some(o => o.value === tv)) { tn.value = tv; } else if (tv) { const opt = new Option(tv, tv); tn.add(opt); tn.value = tv; }
     $('#f_freight').value = r.freight ?? '';
     $('#f_handling').value = r.handling ?? '';
     $('#f_remarks').value = r.remarks || '';
@@ -1011,7 +1090,9 @@ function openSheet(id) {
     $('#f_id').value = '';
     $('#f_date').value = todayStr();
     setCustomerField(''); setCompanyField('');
-    ['#f_location','#f_tonnage','#f_freight','#f_handling','#f_remarks'].forEach(s => $(s).value = '');
+    ['#f_location','#f_tonnage','#f_freight','#f_handling','#f_remarks','#f_handling_weight'].forEach(s => $(s).value = '');
+    $('#f_handling_type').value = '';
+    $('#f_tonnage').value = '';
   }
   updateAmountTotal();
   const actions = $('#sheetActions');
@@ -1050,7 +1131,7 @@ async function onSave() {
   const freight = freightRaw === '' ? 0 : Number(freightRaw);
   const handling = handlingRaw === '' ? 0 : Number(handlingRaw);
   if (isNaN(freight) || isNaN(handling)) return showToast('金額需為數字');
-  if (freight === 0 && handling === 0) return showToast('運費 / 搬運金額 至少填一個');
+  // 運費/搬運金額不再必填
 
   const record = {
     id: editingId || undefined,
@@ -1108,7 +1189,7 @@ function openPicker(kind) {
     list: () => isCustomer ? state.customers : state.companies,
     addAction: isCustomer ? 'add_customer' : 'add_company'
   };
-  $('#pickerTitle').textContent = isCustomer ? '選擇客戶' : '選擇公司 / 案名';
+  $('#pickerTitle').textContent = isCustomer ? '選擇客戶' : '選擇載貨地 / 案名';
   $('#pickerSearch').value = '';
   renderPickerOptions();
   $('#picker').classList.add('show');
