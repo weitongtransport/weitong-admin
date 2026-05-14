@@ -1025,7 +1025,8 @@ function visibleRecords() {
 function render() {
   const monthList = state.records.filter(r => inRange(r, 'month'));
   $('#statCount').innerHTML = `${monthList.length} <span class="small">筆</span>`;
-  $('#statAmount').textContent = fmtMoney(monthList.reduce((s, r) => s + (Number(r.amount) || 0), 0));
+  const statAmountEl = document.getElementById('statAmount');
+  if (statAmountEl) statAmountEl.textContent = fmtMoney(monthList.reduce((s, r) => s + (Number(r.amount) || 0), 0));
 
   const list = visibleRecords();
   const area = $('#recordsArea');
